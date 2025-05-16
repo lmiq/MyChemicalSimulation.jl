@@ -6,8 +6,8 @@ using CellListMap
 using LinearAlgebra: norm
 using Statistics: mean
 
-export initialize
-export simulate
+export main
+export simulation_state
 
 @kwdef mutable struct ParticleState
 	f::SVector{2,Float32} = zero(SVector{2,Float32}) # force
@@ -15,203 +15,208 @@ export simulate
 	type::Symbol = :circle
 end
 
-Base.zero(::Type{ParticleState}) = ParticleState()
-CellListMap.copy_output(x::ParticleState) = ParticleState(x.f, x.color, x.type)
-function CellListMap.reset_output!(x::ParticleState)
-	x.f = zero(typeof(x.f))
-	return x
-end
-function CellListMap.reducer!(x::ParticleState, y::ParticleState)
-	x.f += y.f
-	return x
-end
-
-function update_states!(si, sj, kvec, colors)
-    if (si.color == colors[1] && sj.color == colors[2]) ||
-       (si.color == colors[2] && sj.color == colors[1]) ||
-       (si.color == colors[3] && sj.color == colors[4]) ||
-       (si.color == colors[4] && sj.color == colors[3])
-        react = rand()
-        k = ((si.color == colors[1]) | (sj.color == colors[1])) ? kvec[1] : kvec[2]
-        if react < k
-            for s in (si, sj)
-                s.color == colors[1] ? s.color = colors[3] :
-                s.color == colors[2] ? s.color = colors[4] :
-                s.color == colors[3] ? s.color = colors[1] :
-                s.color == colors[4] ? s.color = colors[2] :
-                nothing
-            end
-        end
-    end
-    return si, sj
-end
-
-function update_particles!(x,y,i,j,d2,states,sys,kvec,colors)
-	dx = y - x
-    ndx = norm(dx)
-    cutoff = sys.cutoff
-    if ndx > 0
-        f = 0.1f0 * (dx/ndx) * (d2 - cutoff^2)
-    else
-        f = rand(SVector{2,Float32})
-    end
-	states[i].f += f
-	states[j].f -= f
-    update_states!(states[i], states[j], kvec, colors)
-	return states
-end
-
-function wall_bump(p, v, size)
-	x, y = p[1], p[2]
-	vx, vy = v[1], v[2]
-	if (x <= 0 && vx < 0) | (x >= size && vx > 0) 
-        x = clamp(x, 0, size)
-		vx = -vx
-	end
-	if (y <= 0 && vy < 0) | (y >= size && vy > 0)
-        y = clamp(y, 0, size)
-		vy = -vy
-	end
-	return typeof(p)(x, y), typeof(v)(vx, vy)
-end
-
-function thermalize!(velocities, t0)
-    vmean = mean(velocities)
-    velocities .-= Ref(vmean)
-    t = sum(x -> sum(abs2, x), velocities)
-    velocities .= sqrt(t0/t) .* velocities
-    t = sum(x -> sum(abs2, x), velocities)
-    return velocities, t
-end
-
-function initialize(;
-    N0=[500, 500, 0, 0], 
-    cutoff=3.0f0, 
-    nsteps=50, 
-    kvec = [0.5, 0.5], 
-    colors=[:blue, :red, :green, :orange],
-    dt=1.0
-)
-    N = sum(N0)
-    box_size = 2 * sqrt(N) * cutoff
-    sys = ParticleSystem(
-    	xpositions= box_size .* rand(Point2f, N),
-    	unitcell=Float32[box_size, box_size],
-    	cutoff=cutoff,
-    	output=[zero(ParticleState) for _ in 1:N],
-    	output_name=:states,
-    	parallel=false,
-    )
-    initial_positions = copy(sys.xpositions)
-    sys.states .= vcat(
+@kwdef mutable struct SimulationData
+    N0::Vector{Int} = [500, 500, 0, 0]
+    N::Int = sum(N0)
+    kvec::Vector{Float64} = [0.5, 0.5]
+    temperature::Float32 = 298.15
+    cutoff::Float32 = 3.0f0
+    box_size::Float32 = 2 * sqrt(N) * cutoff
+    dt::Float32 = 0.1f0
+    nsteps::Int = 100
+    colors::Vector{Symbol} = [:blue, :red, :green, :orange]
+    initial_positions = box_size * rand(Point2f, N)
+    initial_states::Vector{ParticleState} = vcat(
     	[ParticleState(;color=colors[1], type=:circle) for _ in 1:N0[1]],
     	[ParticleState(;color=colors[2], type=:star5) for _ in 1:N0[2]],
     	[ParticleState(;color=colors[3], type=:circle) for _ in 1:N0[3]],
     	[ParticleState(;color=colors[4], type=:star5) for _ in 1:N0[4]],
     )
-    initial_states = deepcopy(sys.states)
-    
-    yscale = sum(x -> x.color != :transparent, sys.states)
-    points_plot = Observable(initial_positions)
-    color_plot = Observable([x.color for x in initial_states])
-    step_plot = Observable("k₁ = $(kvec[1]), k₂ = $(kvec[2]) - Step = 0")
-    fig = Figure(size=(1800, 1000))
-    brd = round(Int, box_size/50)
-    scatter(fig[1:2,1],
-    	points_plot,
-    	markersize=15,
-    	color=color_plot,
-    	marker=[x.type for x in initial_states],
-        axis=(;
-            limits=(-brd, box_size+brd, -brd, box_size+brd),
-            title=step_plot,
-        )
-    )
-    nblue = Observable(vcat([count(x -> x.color == colors[1], initial_states)],[0 for _ in 2:nsteps]))
-    nblue_last = Observable([first(nblue[])])
-    nred = Observable(vcat([count(x -> x.color == colors[2], initial_states)],[0 for _ in 2:nsteps]))
-    nred_last = Observable([first(nred[])])
-    ngreen = Observable(vcat([count(x -> x.color == colors[3], initial_states)], [0 for _ in 2:nsteps]))
-    ngreen_last = Observable([first(ngreen[])])
-    norange = Observable(vcat([count(x -> x.color == colors[4], initial_states)], [0 for _ in 2:nsteps]))
-    norange_last = Observable([first(norange[])])
-    barplot(fig[1,2], [1], nblue_last, color=[colors[1]],
-    	axis=(; title="Histograma - N₀ = $N0", xlabel="Tipo", ylabel="Número", limits=(0, 5, 0, yscale),),
-    )
-    barplot!(fig[1,2], [2], nred_last, color=[colors[2]])
-    barplot!(fig[1,2], [3], ngreen_last, color=[colors[3]])
-    barplot!(fig[1,2], [4], norange_last, color=[colors[4]])
-    q = Observable("Q = $(norange_last[][end]*ngreen_last[][end]/(nblue_last[][end]*nred_last[][end]))")
-    text!(fig[1,2], q, position = (4.0, 0.95*yscale))
-    time = 1:nsteps
-    title_plot=Observable("Número de Moléculas - N = [$(first(nblue_last[])), $(first(nred_last[])), $(first(ngreen_last[])), $(first(norange_last[]))]")
-    scatter(fig[2,2], time, nblue, color=colors[1], markersize=5,
-    	axis=(;
-            title=title_plot,
-            xlabel="Tempo",
-            ylabel="Número",
-            limits=(0, nsteps, 0, yscale),
-        ),
-    )
-    scatter!(fig[2,2], time, nred, color=colors[2], markersize=5)
-    scatter!(fig[2,2], time, ngreen, color=colors[3], markersize=5)
-    scatter!(fig[2,2], time, norange, color=colors[4], markersize=5)
-    colsize!(fig.layout, 1, Relative(2/3))
-    return fig, sys, points_plot, color_plot, step_plot, title_plot, q,
-        nblue, nred, ngreen, norange, 
-        nblue_last, nred_last, ngreen_last, norange_last,
-        nsteps, kvec, colors, dt
 end
 
-function simulate(
-        fig, sys, points_plot, color_plot, step_plot, title_plot, q,
-        nblue, nred, ngreen, norange, 
-        nblue_last, nred_last, ngreen_last, norange_last,
-        nsteps, kvec, colors, dt
-)
-    N = length(sys.xpositions)
-    box_size = sys.unitcell[1]
-    t0 = 30f0 * sys.cutoff
-    velocities = randn(SVector{2,Float32}, N)
-    velocities, t = thermalize!(velocities, t0)
-    for istep in 1:nsteps
+include("./simulation.jl")
+
+function observables()
+    obs = (
+        positions = Observable(SVector{2,Float32}[]),
+        markercolor = Observable(Symbol[]),
+        step_title = Observable(""),
+        nmols_title = Observable(""),
+        q_title = Observable(""),
+        nmols_time = [ Observable(Int[]) for _ in 1:4 ], # vector of observables
+        nmols_current = Observable(Int[]),
+    )
+    return obs
+end
+
+@kwdef mutable struct SimulationState
+    sim = SimulationData()
+    obs = observables()
+    fig = Figure(size=(1800, 1000))
+    stop::Bool = false
+end
+simulation_state = nothing
+
+function main()
+    global simulation_state
+    simulation_state = SimulationState()
+
+    (; obs, fig) = simulation_state
+
+    # Figure layout
+    Axis(fig[1:2,1], title=obs.step_title)
+    Axis(fig[1,2])
+    Axis(fig[2,2], title=obs.nmols_title)
+    ax = Axis(fig[3,1:2])
+    hidedecorations!(ax)
+
+    # Setup simulation and plots
+    setup!()
+
+    # 
+    # Buttons
+    #
+    fig[3,1:2] = buttongrid = GridLayout(tellwidth=false)
+    buttons = buttongrid[1, 1:3] = [ 
+        Button(fig, label="Setup"), 
+        Button(fig, label="Run"), 
+        Button(fig, label="Stop"),
+    ]
+    on(buttons[1].clicks) do _
+        setup!()
+        return nothing
+    end
+    on(buttons[2].clicks) do _
+        simulate!()
+        return nothing
+    end
+    on(buttons[3].clicks) do _ 
+        simulation_state.stop = true
+        return nothing
+    end
+    colsize!(fig.layout, 1, Relative(2/3))
+    rowsize!(fig.layout, 3, Relative(1/10))
+
+    return fig
+end
+
+function setup!()
+    global simulation_state
+    (; sim, obs, fig) = simulation_state
+    simulation_state.sim = SimulationData()
+    
+    #
+    # GUI properties
+    #
+    obs.positions[] = sim.initial_positions
+    obs.markercolor[] = [x.color for x in sim.initial_states]
+    obs.step_title[] = "k₁ = $(sim.kvec[1]), k₂ = $(sim.kvec[2]) - Step = 0"
+
+    # Number of molecules of each time, over time and current
+    for ic in eachindex(sim.colors)
+        obs.nmols_time[ic][] = vcat([count(x -> x.color == sim.colors[ic], sim.initial_states)],[0 for _ in 2:sim.nsteps])
+    end
+    obs.nmols_current[] = [ first(nmols_time[]) for nmols_time in obs.nmols_time ]
+
+    # Reaction quotient string
+    q = obs.nmols_current[][3]*obs.nmols_current[][4]/(obs.nmols_current[][1]*obs.nmols_current[][2])
+    obs.q_title[] = "Q = $(round(q, digits=5))"
+    obs.nmols_title[]="Número de Moléculas - N = [$(join(obs.nmols_current[], ", "))]"
+
+    #
+    # Scatter plot of the positions
+    #
+    ax = content(fig[1:2,1])
+    brd = round(Int, sim.box_size/50)
+    ax.limits=(-brd, sim.box_size+brd, -brd, sim.box_size+brd)
+    scatter!(fig[1:2,1],
+    	obs.positions,
+    	markersize=15,
+    	color=obs.markercolor,
+    	marker=[x.type for x in sim.initial_states],
+    )
+
+    #
+    # Bar plot of the number of particules of each type
+    #
+    yscale = sum(x -> x.color != :transparent, sim.initial_states)
+    barplot!(fig[1,2], 
+        [1,2,3,4],
+        obs.nmols_current,
+        color=sim.colors,
+    )
+    ax = content(fig[1,2])
+    ax.title="Histograma - N₀ = $(sim.N0)"
+    ax.xlabel="Tipo"
+    ax.ylabel="Número"
+    ax.limits=(0, 5, 0, yscale)
+
+    text!(fig[1,2], obs.q_title, position = (4.0, 0.95*yscale))
+
+    #
+    # Quantities over time
+    #
+    ax = content(fig[2,2])
+    ax.xlabel="Tempo"
+    ax.ylabel="Número"
+    ax.limits=(0, sim.nsteps, 0, yscale)
+    for ic in eachindex(sim.colors)
+        scatter!(fig[2,2], 
+            1:sim.nsteps, 
+            obs.nmols_time[ic],
+            color=sim.colors[ic],
+            markersize=5,
+        )
+    end
+
+    return nothing
+end
+
+function simulate!()
+    global simulation_state
+    (; sim, obs) = simulation_state
+    sys = ParticleSystem(
+    	xpositions=copy(sim.initial_positions),
+    	unitcell=Float32[sim.box_size, sim.box_size],
+    	cutoff=sim.cutoff,
+    	output=deepcopy(sim.initial_states),
+    	output_name=:states,
+    	parallel=false,
+    )
+    simulation_state.stop = false
+    t0 = sim.temperature - 208.15 # for 298.15K, becomes 90, which is reasonable here
+    velocities = randn(SVector{2,Float32}, sim.N)
+    velocities, _ = thermalize!(velocities, t0)
+    for istep in 1:sim.nsteps
     	current_states = map_pairwise!(
-            (x,y,i,j,d2,out) -> update_particles!(x,y,i,j,d2,out,sys,kvec,colors), 
+            (x,y,i,j,d2,out) -> update_particles!(x,y,i,j,d2,out,sys,sim.kvec,sim.colors), 
             sys
         )
         thermalize!(velocities, t0)
     	for i in eachindex(sys.xpositions, velocities, current_states)
-    	 	pi = sys.xpositions[i]
-    		vi = velocities[i]
-        	pi = pi + vi * dt + current_states[i].f * dt^2
-    		vi = vi + current_states[i].f * dt
-    		pi, vi = wall_bump(pi, vi, box_size)
-    		sys.xpositions[i] = pi
-    		velocities[i] = vi
+    	 	p = sys.xpositions[i]
+    		v = velocities[i]
+        	p = p + v * sim.dt + current_states[i].f * sim.dt^2
+    		v = v + current_states[i].f * sim.dt
+    		p, v = wall_bump(p, v, sim.box_size)
+    		sys.xpositions[i] = p
+    		velocities[i] = v
     	end
-    	points_plot[] = sys.xpositions
-    	color_plot[] = [x.color for x in current_states]
-        step_plot[] = "k₁ = $(kvec[1]), k₂ = $(kvec[2]) - Step = $istep"
-        nblue[][istep] = count(x -> x.color == colors[1], current_states)
-        nblue[] = nblue[]
-        nblue_last[] = [nblue[][istep]]
-        nred[][istep] = count(x -> x.color == colors[2], current_states)
-        nred[] = nred[]
-        nred_last[] = [nred[][istep]]
-        ngreen[][istep] = count(x -> x.color == colors[3], current_states)
-        ngreen[] = ngreen[]
-        ngreen_last[] = [ngreen[][istep]]
-        norange[][istep] = count(x -> x.color == colors[4], current_states)
-        norange[] = norange[]
-        norange_last[] = [norange[][istep]]
-        title_plot[]="Número de Moléculas - N = [$(first(nblue_last[])), $(first(nred_last[])), $(first(ngreen_last[])), $(first(norange_last[]))]"
-        q[] = "Q = $(first(norange_last[])*first(ngreen_last[])/(first(nblue_last[])*first(nred_last[])))"
-        display(fig)
+    	obs.positions[] = sys.xpositions
+    	obs.markercolor[] = [x.color for x in current_states]
+        obs.step_title[] = "k₁ = $(sim.kvec[1]), k₂ = $(sim.kvec[2]) - Step = $istep"
+        for ic in eachindex(sim.colors)
+            obs.nmols_time[ic][][istep] = count(x -> x.color == sim.colors[ic], current_states)
+            obs.nmols_time[ic][] = obs.nmols_time[ic][]
+        end
+        obs.nmols_current[] = [ nmols_time[][istep] for nmols_time in obs.nmols_time ]
+        obs.nmols_title[]="Número de Moléculas - N = [$(join(obs.nmols_current[], ", "))]"
+        q = obs.nmols_current[][3]*obs.nmols_current[][4]/(obs.nmols_current[][1]*obs.nmols_current[][2])
+        obs.q_title[] = "Q = $(round(q, digits=5))"
     	sleep(1/50)
-        isfile("./stop_simulation") && return "stop_simulation found!"
+        simulation_state.stop && break
     end
     return nothing
 end
-
 
 end
