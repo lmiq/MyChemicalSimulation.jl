@@ -22,7 +22,7 @@ end
     temperature::Float32 = 298.15
     cutoff::Float32 = 3.0f0
     box_size::Float32 = 2 * sqrt(N) * cutoff
-    dt::Float32 = 0.1f0
+    dt::Float32 = 1.0f0
     nsteps::Int = 100
     colors::Vector{Symbol} = [:blue, :red, :green, :orange]
     initial_positions = box_size * rand(Point2f, N)
@@ -55,11 +55,12 @@ end
     fig = Figure(size=(1800, 1000))
     stop::Bool = false
 end
-simulation_state = nothing
+simulation_state = SimulationState()
+
+
 
 function main()
     global simulation_state
-    simulation_state = SimulationState()
 
     (; obs, fig) = simulation_state
 
@@ -103,7 +104,6 @@ end
 function setup!()
     global simulation_state
     (; sim, obs, fig) = simulation_state
-    simulation_state.sim = SimulationData()
     
     #
     # GUI properties
