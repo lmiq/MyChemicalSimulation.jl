@@ -45,6 +45,11 @@ function observables()
         q_title = Observable(""),
         nmols_time = [ Observable(Int[]) for _ in 1:4 ], # vector of observables
         nmols_current = Observable(Int[]),
+        temperature = Observable([298.15]),
+        N1 = Observable(Int[500]),
+        N2 = Observable(Int[500]),
+        N3 = Observable(Int[0]),
+        N4 = Observable(Int[0]),
     )
     return obs
 end
@@ -57,10 +62,9 @@ end
 end
 simulation_state = SimulationState()
 
-
-
 function main()
     global simulation_state
+    simulation_state = SimulationState()
 
     (; obs, fig) = simulation_state
 
@@ -71,13 +75,40 @@ function main()
     ax = Axis(fig[3,1:2])
     hidedecorations!(ax)
 
+    #
+    # Options
+    #
+    fig[3,1] = textgrid = GridLayout(tellwidth=false)
+    tb = textgrid[1, 1:5] = [
+        Textbox(fig, placeholder="298.15", validator=Float64)
+        Textbox(fig, placeholder="500", validator=Int)
+        Textbox(fig, placeholder="500", validator=Int)
+        Textbox(fig, placeholder="0", validator=Int)
+        Textbox(fig, placeholder="0", validator=Int)
+    ]
+    on(tb[1].stored_string) do s
+        obs.temperature[] = [parse(Float64, s)]
+    end
+    on(tb[2].stored_string) do s
+        obs.N1[] = [parse(Int, s)]
+    end
+    on(tb[3].stored_string) do s
+        obs.N2[] = [parse(Int, s)]
+    end
+    on(tb[4].stored_string) do s
+        obs.N3[] = [parse(Int, s)]
+    end
+    on(tb[5].stored_string) do s
+        obs.N4[] = [parse(Int, s)]
+    end
+
     # Setup simulation and plots
     setup!()
 
     # 
     # Buttons
     #
-    fig[3,1:2] = buttongrid = GridLayout(tellwidth=false)
+    fig[3,2] = buttongrid = GridLayout(tellwidth=false)
     buttons = buttongrid[1, 1:3] = [ 
         Button(fig, label="Setup"), 
         Button(fig, label="Run"), 
@@ -88,7 +119,7 @@ function main()
         return nothing
     end
     on(buttons[2].clicks) do _
-        simulate!()
+        @async simulate!()
         return nothing
     end
     on(buttons[3].clicks) do _ 
@@ -103,8 +134,16 @@ end
 
 function setup!()
     global simulation_state
-    (; sim, obs, fig) = simulation_state
-    
+    (; obs, fig) = simulation_state
+
+    # Update simulation options
+    simulation_state.sim = SimulationData(;
+        temperature = first(obs.temperature[]),
+        N0 = [first(obs.N1[]), first(obs.N2[]), first(obs.N3[]), first(obs.N4[])],
+    )
+    (; sim) = simulation_state
+
+
     #
     # GUI properties
     #
