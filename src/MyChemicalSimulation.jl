@@ -14,10 +14,9 @@ export simulate
 	color::Symbol = :blue
 	type::Symbol = :circle
 end
-Base.zero(::Type{ParticleState}) = ParticleState()
 
-CellListMap.copy_output(x::ParticleState) = 
-	ParticleState(x.f, x.color, x.type)
+Base.zero(::Type{ParticleState}) = ParticleState()
+CellListMap.copy_output(x::ParticleState) = ParticleState(x.f, x.color, x.type)
 function CellListMap.reset_output!(x::ParticleState)
 	x.f = zero(typeof(x.f))
 	return x
@@ -28,7 +27,6 @@ function CellListMap.reducer!(x::ParticleState, y::ParticleState)
 end
 
 function update_states!(si, sj, kvec, colors)
-    # reacting pairs
     if (si.color == colors[1] && sj.color == colors[2]) ||
        (si.color == colors[2] && sj.color == colors[1]) ||
        (si.color == colors[3] && sj.color == colors[4]) ||
@@ -37,15 +35,11 @@ function update_states!(si, sj, kvec, colors)
         k = ((si.color == colors[1]) | (sj.color == colors[1])) ? kvec[1] : kvec[2]
         if react < k
             for s in (si, sj)
-                if s.color == colors[1]
-                    s.color = colors[3]
-                elseif s.color == colors[2]
-                    s.color = colors[4]
-                elseif s.color == colors[3]
-                    s.color = colors[1]
-                elseif s.color == colors[4]
-                    s.color = colors[2]
-                end
+                s.color == colors[1] ? s.color = colors[3] :
+                s.color == colors[2] ? s.color = colors[4] :
+                s.color == colors[3] ? s.color = colors[1] :
+                s.color == colors[4] ? s.color = colors[2] :
+                nothing
             end
         end
     end
@@ -93,7 +87,7 @@ end
 function initialize(;
     N0=[500, 500, 0, 0], 
     cutoff=3.0f0, 
-    nsteps=1000, 
+    nsteps=50, 
     kvec = [0.5, 0.5], 
     colors=[:blue, :red, :green, :orange],
     dt=1.0
