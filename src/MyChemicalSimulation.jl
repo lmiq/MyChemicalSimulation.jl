@@ -52,7 +52,7 @@ end
 @kwdef mutable struct SimulationState
     sim = SimulationData()
     obs = observables()
-    fig = Figure(size=(1800, 1000))
+    fig = Figure(size=(900, 500))
     stop::Bool = false
 end
 simulation_state = nothing
