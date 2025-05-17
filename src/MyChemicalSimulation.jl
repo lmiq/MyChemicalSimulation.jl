@@ -7,7 +7,6 @@ using LinearAlgebra: norm
 using Statistics: mean
 
 export main
-export simulation_state
 
 @kwdef mutable struct ParticleState
 	f::SVector{2,Float32} = zero(SVector{2,Float32}) # force
@@ -60,12 +59,8 @@ end
     fig = Figure(size=(900, 500))
     stop::Bool = false
 end
-simulation_state = SimulationState()
 
-function main()
-    global simulation_state
-    simulation_state = SimulationState()
-
+function main(; simulation_state = SimulationState())
     (; obs, fig) = simulation_state
 
     # Figure layout
@@ -103,7 +98,7 @@ function main()
     end
 
     # Setup simulation and plots
-    setup!()
+    setup!(simulation_state)
 
     # 
     # Buttons
@@ -115,11 +110,11 @@ function main()
         Button(fig, label="Stop"),
     ]
     on(buttons[1].clicks) do _
-        setup!()
+        setup!(simulation_state)
         return nothing
     end
     on(buttons[2].clicks) do _
-        @async simulate!()
+        @async simulate!(simulation_state)
         return nothing
     end
     on(buttons[3].clicks) do _ 
@@ -132,8 +127,7 @@ function main()
     return fig
 end
 
-function setup!()
-    global simulation_state
+function setup!(simulation_state)
     (; obs, fig) = simulation_state
 
     # Update simulation options
@@ -211,8 +205,7 @@ function setup!()
     return nothing
 end
 
-function simulate!()
-    global simulation_state
+function simulate!(simulation_state)
     (; sim, obs) = simulation_state
     sys = ParticleSystem(
     	xpositions=copy(sim.initial_positions),
