@@ -49,6 +49,7 @@ function observables()
         N2 = Observable(Int[500]),
         N3 = Observable(Int[0]),
         N4 = Observable(Int[0]),
+        time = Observable(Float64[1.0]),
     )
     return obs
 end
@@ -63,23 +64,18 @@ end
 function main(; simulation_state = SimulationState())
     (; obs, fig) = simulation_state
 
-    # Figure layout
-    Axis(fig[1:2,1], title=obs.step_title)
-    Axis(fig[1,2])
-    Axis(fig[2,2], title=obs.nmols_title)
-    ax = Axis(fig[3,1:2])
-    hidedecorations!(ax)
-
     #
-    # Options
+    # Setup
     #
-    fig[3,1] = textgrid = GridLayout(tellwidth=false)
-    tb = textgrid[1, 1:5] = [
-        Textbox(fig, placeholder="298.15", validator=Float64)
-        Textbox(fig, placeholder="500", validator=Int)
-        Textbox(fig, placeholder="500", validator=Int)
-        Textbox(fig, placeholder="0", validator=Int)
-        Textbox(fig, placeholder="0", validator=Int)
+    fig[1:2,1] = setup_grid = GridLayout(tellwidth=false)
+    tb = setup_grid[1:7, 1] = [
+        Textbox(fig, placeholder="298.15", validator=Float64, width=100),
+        Textbox(fig, placeholder="500", validator=Int, width=100),
+        Textbox(fig, placeholder="500", validator=Int, width=100),
+        Textbox(fig, placeholder="0", validator=Int, width=100),
+        Textbox(fig, placeholder="0", validator=Int, width=100),
+        Textbox(fig, placeholder="1.0", validator=Float64, width=100),
+        Button(fig, label="Setup"), 
     ]
     on(tb[1].stored_string) do s
         obs.temperature[] = [parse(Float64, s)]
@@ -96,6 +92,20 @@ function main(; simulation_state = SimulationState())
     on(tb[5].stored_string) do s
         obs.N4[] = [parse(Int, s)]
     end
+    on(tb[6].stored_string) do s
+        obs.time[] = [parse(Float64, s)]
+    end
+    on(tb[7].clicks) do _
+        setup!(simulation_state)
+        return nothing
+    end
+
+    # Figure layout
+    Axis(fig[1:2,2], title=obs.step_title)
+    Axis(fig[1,3])
+    Axis(fig[2,3], title=obs.nmols_title)
+    ax = Axis(fig[3,1:3])
+    hidedecorations!(ax)
 
     # Setup simulation and plots
     setup!(simulation_state)
@@ -103,25 +113,22 @@ function main(; simulation_state = SimulationState())
     # 
     # Buttons
     #
-    fig[3,2] = buttongrid = GridLayout(tellwidth=false)
-    buttons = buttongrid[1, 1:3] = [ 
-        Button(fig, label="Setup"), 
+    fig[3,1:3] = buttongrid = GridLayout(tellwidth=false)
+    buttons = buttongrid[1, 1:2] = [ 
         Button(fig, label="Run"), 
         Button(fig, label="Stop"),
     ]
     on(buttons[1].clicks) do _
-        setup!(simulation_state)
-        return nothing
-    end
-    on(buttons[2].clicks) do _
         @async simulate!(simulation_state)
         return nothing
     end
-    on(buttons[3].clicks) do _ 
+    on(buttons[2].clicks) do _ 
         simulation_state.stop = true
         return nothing
     end
-    colsize!(fig.layout, 1, Relative(2/3))
+
+    colsize!(fig.layout, 1, Relative(1/8))
+    colsize!(fig.layout, 2, Relative(2/3))
     rowsize!(fig.layout, 3, Relative(1/10))
 
     return fig
@@ -133,6 +140,7 @@ function setup!(simulation_state)
     # Update simulation options
     simulation_state.sim = SimulationData(;
         temperature = first(obs.temperature[]),
+        nsteps = round(Int, 30 * 60 *first(obs.time[])),
         N0 = [first(obs.N1[]), first(obs.N2[]), first(obs.N3[]), first(obs.N4[])],
     )
     (; sim) = simulation_state
@@ -159,10 +167,10 @@ function setup!(simulation_state)
     #
     # Scatter plot of the positions
     #
-    ax = content(fig[1:2,1])
+    ax = content(fig[1:2,2])
     brd = round(Int, sim.box_size/50)
     ax.limits=(-brd, sim.box_size+brd, -brd, sim.box_size+brd)
-    scatter!(fig[1:2,1],
+    scatter!(fig[1:2,2],
     	obs.positions,
     	markersize=15,
     	color=obs.markercolor,
@@ -173,29 +181,29 @@ function setup!(simulation_state)
     # Bar plot of the number of particules of each type
     #
     yscale = sum(x -> x.color != :transparent, sim.initial_states)
-    barplot!(fig[1,2], 
+    barplot!(fig[1,3], 
         [1,2,3,4],
         obs.nmols_current,
         color=sim.colors,
     )
-    ax = content(fig[1,2])
+    ax = content(fig[1,3])
     ax.title="Histograma - N₀ = $(sim.N0)"
     ax.xlabel="Tipo"
     ax.ylabel="Número"
     ax.limits=(0, 5, 0, yscale)
 
-    text!(fig[1,2], obs.q_title, position = (4.0, 0.95*yscale))
+    text!(fig[1,3], obs.q_title, position = (4.0, 0.95*yscale))
 
     #
     # Quantities over time
     #
-    ax = content(fig[2,2])
+    ax = content(fig[2,3])
     ax.xlabel="Tempo"
     ax.ylabel="Número"
-    ax.limits=(0, sim.nsteps, 0, yscale)
+    ax.limits=(0, first(obs.time[]), 0, yscale)
     for ic in eachindex(sim.colors)
-        scatter!(fig[2,2], 
-            1:sim.nsteps, 
+        scatter!(fig[2,3], 
+            range(0.0, first(obs.time[]); length=sim.nsteps),
             obs.nmols_time[ic],
             color=sim.colors[ic],
             markersize=5,
@@ -216,7 +224,7 @@ function simulate!(simulation_state)
     	parallel=false,
     )
     simulation_state.stop = false
-    t0 = sim.temperature - 208.15 # for 298.15K, becomes 90, which is reasonable here
+    t0 = 90*sim.temperature/298.15 # for 298.15K, becomes 90, which is reasonable here
     velocities = randn(SVector{2,Float32}, sim.N)
     velocities, _ = thermalize!(velocities, t0)
     for istep in 1:sim.nsteps
@@ -245,7 +253,7 @@ function simulate!(simulation_state)
         obs.nmols_title[]="Número de Moléculas - N = [$(join(obs.nmols_current[], ", "))]"
         q = obs.nmols_current[][3]*obs.nmols_current[][4]/(obs.nmols_current[][1]*obs.nmols_current[][2])
         obs.q_title[] = "Q = $(round(q, digits=5))"
-    	sleep(1/50)
+    	sleep(1/30)
         simulation_state.stop && break
     end
     return nothing
