@@ -32,4 +32,4 @@ julia> simulate()
 
 Isto deve abrir uma janela como esta:
 
-[!image]("./src/simulate.png")
+[!image]("./docs/simulate.png")
