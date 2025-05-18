@@ -78,14 +78,30 @@ function main()
     #
     fig = Figure(size=(1200, 800))
     fig[1:2,1] = setup_grid = GridLayout(tellwidth=false)
-    tb = setup_grid[1:7, 1] = [
+
+    setup_grid[1:6, 1] = [
+        Label(fig, "Temperatura:", justification=:right),
+        Label(fig, "Azul:", justification=:right),
+        Label(fig, "Vermelho:", justification=:right),
+        Label(fig, "Laranja:", justification=:right),
+        Label(fig, "Verde:", justification=:right),
+        Label(fig, "tempo:", justification=:right),
+    ]
+    setup_grid[1:6, 3] = [
+        Label(fig, "K", justification=:left),
+        Label(fig, "", justification=:left),
+        Label(fig, "", justification=:left),
+        Label(fig, "", justification=:left),
+        Label(fig, "", justification=:left),
+        Label(fig, "min", justification=:left),
+    ]
+    tb = setup_grid[1:6, 2] = [
         Textbox(fig, placeholder=@lift(string(round($(obs).temperature; digits=2))), validator=Float64, width=100),
         Textbox(fig, placeholder=@lift(string($(obs).N0[1])), validator=Int, width=100),
         Textbox(fig, placeholder=@lift(string($(obs).N0[2])), validator=Int, width=100),
         Textbox(fig, placeholder=@lift(string($(obs).N0[3])), validator=Int, width=100),
         Textbox(fig, placeholder=@lift(string($(obs).N0[4])), validator=Int, width=100),
         Textbox(fig, placeholder=@lift(string($(obs).time)), validator=Float64, width=100),
-        Button(fig, label="Setup"), 
     ]
     on(tb[1].stored_string) do s
         up!(obs, :temperature, parse(Float32, s))
@@ -105,8 +121,22 @@ function main()
     on(tb[6].stored_string) do s
         up!(obs, :time, parse(Float64, s))
     end
-    on(tb[7].clicks) do _
+
+    setup_grid[7,1] = [ Label(fig, "") ]
+
+    sb = setup_grid[8, 1] = [ Button(fig, label="Setup") ] 
+    on(sb[1].clicks) do _
         setup!(fig, obs)
+    end
+
+    rb = setup_grid[8, 2] = [ Button(fig, label="Run") ] 
+    on(rb[1].clicks) do _
+        @async simulate!(obs)
+    end
+
+    stopb = setup_grid[8, 3] = [ Button(fig, label="Stop") ] 
+    on(stopb[1].clicks) do _ 
+        up!(obs, :stop, true)
     end
 
     # Figure layout
@@ -126,31 +156,12 @@ function main()
         limits=@lift((0, $(obs).time, 0, yscale($obs)))
     )
 
-    ax = Axis(fig[3,1:3])
-    hidedecorations!(ax)
-
     # Setup simulation and plots
     setup!(fig, obs)
 
-    # 
-    # Buttons
-    #
-    fig[3,1:3] = buttongrid = GridLayout(tellwidth=false)
-    buttons = buttongrid[1, 1:2] = [ 
-        Button(fig, label="Run"), 
-        Button(fig, label="Stop"),
-    ]
-    on(buttons[1].clicks) do _
-        @async simulate!(obs)
-        return nothing
-    end
-    on(buttons[2].clicks) do _ 
-        up!(obs, :stop, true)
-    end
-
-    colsize!(fig.layout, 1, Relative(1/8))
-    colsize!(fig.layout, 2, Relative(2/3))
-    rowsize!(fig.layout, 3, Relative(1/10))
+    colsize!(fig.layout, 1, Relative(2/10))
+    colsize!(fig.layout, 2, Relative(5/10))
+    colsize!(fig.layout, 3, Relative(3/10))
 
     return fig
 end
