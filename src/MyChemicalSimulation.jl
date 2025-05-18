@@ -79,24 +79,51 @@ function main()
     fig = Figure(size=(1200, 800))
     fig[1:2,1] = setup_grid = GridLayout(tellwidth=false)
 
-    setup_grid[1:6, 1] = [
+    cgrid = setup_grid[1:8, 1] = [
         Label(fig, "Temperatura:", halign=:right),
-        Label(fig, "Azul:", halign=:right),
-        Label(fig, "Vermelho:", halign=:right),
-        Label(fig, "Laranja:", halign=:right),
-        Label(fig, "Verde:", halign=:right),
+        Label(fig, "k₁:", halign=:right),
+        Label(fig, "k₂:", halign=:right),
+        Menu(fig, options = ["Azul", "Transparente"]),
+        Menu(fig, options = ["Vermelho", "Transparente"]),
+        Menu(fig, options = ["Laranja", "Transparente"]),
+        Menu(fig, options = ["Verde", "Transparente"]),
         Label(fig, "tempo:", halign=:right),
     ]
-    setup_grid[1:6, 3] = [
+    on(cgrid[4].selection) do s
+        colors = obs[].colors
+        colors[1] = s == "Transparente" ? :transparent : :blue
+        up!(obs, :colors, colors)
+    end
+    on(cgrid[5].selection) do s
+        colors = obs[].colors
+        colors[2] = s == "Transparente" ? :transparent : :red
+        up!(obs, :colors, colors)
+    end
+    on(cgrid[6].selection) do s
+        colors = obs[].colors
+        colors[3] = s == "Transparente" ? :transparent : :orange
+        up!(obs, :colors, colors)
+    end
+    on(cgrid[7].selection) do s
+        colors = obs[].colors
+        colors[4] = s == "Transparente" ? :transparent : :red
+        up!(obs, :colors, colors)
+    end
+
+    setup_grid[1:8, 3] = [
         Label(fig, "K", halign=:left),
+        Label(fig, "mol⁻¹ s⁻¹", halign=:left),
+        Label(fig, "mol⁻¹ s⁻¹", halign=:left),
         Label(fig, "", halign=:left),
         Label(fig, "", halign=:left),
         Label(fig, "", halign=:left),
         Label(fig, "", halign=:left),
         Label(fig, "min", halign=:left),
     ]
-    tb = setup_grid[1:6, 2] = [
-        Textbox(fig, placeholder=@lift(string(round($(obs).temperature; digits=2))), validator=Float64, width=100, halign=:right),
+    tb = setup_grid[1:8, 2] = [
+        Textbox(fig, placeholder=@lift(string(round($(obs).temperature; digits=2))), validator=Float64, width=100, halign=:center),
+        Textbox(fig, placeholder=@lift(string(round($(obs).kvec[1]; digits=2))), validator=Float64, width=100, halign=:center),
+        Textbox(fig, placeholder=@lift(string(round($(obs).kvec[2]; digits=2))), validator=Float64, width=100, halign=:center),
         Textbox(fig, placeholder=@lift(string($(obs).N0[1])), validator=Int, width=100),
         Textbox(fig, placeholder=@lift(string($(obs).N0[2])), validator=Int, width=100),
         Textbox(fig, placeholder=@lift(string($(obs).N0[3])), validator=Int, width=100),
@@ -107,37 +134,47 @@ function main()
         up!(obs, :temperature, parse(Float32, s))
     end
     on(tb[2].stored_string) do s
-        up!(obs, :N0, [i == 1 ? parse(Int, s) : obs[].N0[i] for i in eachindex(sim.colors)])
+        up!(obs, :kvec, [parse(Float32, s), obs[].kvec[2]])
     end
     on(tb[3].stored_string) do s
-        up!(obs, :N0, [i == 2 ? parse(Int, s) : obs[].N0[i] for i in eachindex(sim.colors)])
+        up!(obs, :kvec, [obs[].kvec[1], parse(Float32, s)])
     end
     on(tb[4].stored_string) do s
-        up!(obs, :N0, [i == 3 ? parse(Int, s) : obs[].N0[i] for i in eachindex(sim.colors)])
+        up!(obs, :N0, [i == 1 ? parse(Int, s) : obs[].N0[i] for i in eachindex(sim.colors)])
     end
     on(tb[5].stored_string) do s
-        up!(obs, :N0, [i == 4 ? parse(Int, s) : obs[].N0[i] for i in eachindex(sim.colors)])
+        up!(obs, :N0, [i == 2 ? parse(Int, s) : obs[].N0[i] for i in eachindex(sim.colors)])
     end
     on(tb[6].stored_string) do s
+        up!(obs, :N0, [i == 3 ? parse(Int, s) : obs[].N0[i] for i in eachindex(sim.colors)])
+    end
+    on(tb[7].stored_string) do s
+        up!(obs, :N0, [i == 4 ? parse(Int, s) : obs[].N0[i] for i in eachindex(sim.colors)])
+    end
+    on(tb[8].stored_string) do s
         up!(obs, :time, parse(Float64, s))
     end
 
-    setup_grid[7,1] = [ Label(fig, "") ]
+    setup_grid[8,1] = [ Label(fig, "") ]
 
-    sb = setup_grid[8, 1] = [ Button(fig, label="Setup") ] 
+    sb = setup_grid[9, 1] = [ Button(fig, label="Setup") ] 
     on(sb[1].clicks) do _
         setup!(fig, obs)
     end
 
-    rb = setup_grid[8, 2] = [ Button(fig, label="Run") ] 
+    rb = setup_grid[9, 2] = [ Button(fig, label="Run") ] 
     on(rb[1].clicks) do _
         @async simulate!(obs)
     end
 
-    stopb = setup_grid[8, 3] = [ Button(fig, label="Stop") ] 
+    stopb = setup_grid[9, 3] = [ Button(fig, label="Stop") ] 
     on(stopb[1].clicks) do _ 
         up!(obs, :stop, true)
     end
+
+    colsize!(setup_grid, 1, Relative(4/10))
+    colsize!(setup_grid, 2, Relative(4/10))
+    colsize!(setup_grid, 3, Relative(2/10))
 
     # Figure layout
     Axis(fig[1:2,2], title=@lift("k₁ = "*string($(obs).kvec[1])*" k₂ = "*string($(obs).kvec[2])*" - Step = "*string($(obs).step)))
@@ -171,7 +208,9 @@ function setup!(fig, obs)
     sim = SimulationData(
         N0 = sim.N0,
         temperature = sim.temperature,
-        time = sim.time
+        time = sim.time,
+        kvec = sim.kvec,
+        colors = sim.colors,
     )
     obs[] = sim
 
