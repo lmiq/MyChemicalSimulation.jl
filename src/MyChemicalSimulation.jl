@@ -106,7 +106,7 @@ function main()
     end
     on(cgrid[7].selection) do s
         colors = obs[].colors
-        colors[4] = s == "Transparente" ? :transparent : :red
+        colors[4] = s == "Transparente" ? :transparent : :green
         up!(obs, :colors, colors)
     end
 
