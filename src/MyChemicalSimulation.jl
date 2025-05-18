@@ -6,7 +6,7 @@ using CellListMap
 using LinearAlgebra: norm
 using Statistics: mean
 
-export main
+export simulate
 
 @kwdef mutable struct ParticleState
 	f::SVector{2,Float32} = zero(SVector{2,Float32}) # force
@@ -69,7 +69,7 @@ end
 
 yscale(sim) = sum(x -> x.color != :transparent, sim.initial_states)
 
-function main()
+function simulate()
     sim = SimulationData()
     obs = Observable(sim)
 
