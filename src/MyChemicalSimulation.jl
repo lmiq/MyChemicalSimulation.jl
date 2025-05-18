@@ -22,93 +22,115 @@ end
     cutoff::Float32 = 3.0f0
     box_size::Float32 = 2 * sqrt(N) * cutoff
     dt::Float32 = 1.0f0
+    time::Float64 = 1.0
+    step::Int = 0
     nsteps::Int = 100
     colors::Vector{Symbol} = [:blue, :red, :green, :orange]
-    initial_positions = box_size * rand(Point2f, N)
+    positions = box_size * rand(Point2f, N)
     initial_states::Vector{ParticleState} = vcat(
     	[ParticleState(;color=colors[1], type=:circle) for _ in 1:N0[1]],
     	[ParticleState(;color=colors[2], type=:star5) for _ in 1:N0[2]],
     	[ParticleState(;color=colors[3], type=:circle) for _ in 1:N0[3]],
     	[ParticleState(;color=colors[4], type=:star5) for _ in 1:N0[4]],
     )
+    current_state::Vector{ParticleState} = deepcopy(initial_states)
+    N_over_time::Vector{Vector{Int}} = [
+        [i == 1 ? N0[1] : 0 for i in 1:nsteps],
+        [i == 1 ? N0[2] : 0 for i in 1:nsteps],
+        [i == 1 ? N0[3] : 0 for i in 1:nsteps],
+        [i == 1 ? N0[4] : 0 for i in 1:nsteps],
+    ]
+    stop::Bool = false
 end
+SimulationData(sim::SimulationData) =
+    SimulationData((field = getfield(sim, field) for field in fieldnames(SimulationData))...)
 
 include("./simulation.jl")
 
-function observables()
-    obs = (
-        positions = Observable(SVector{2,Float32}[]),
-        markercolor = Observable(Symbol[]),
-        step_title = Observable(""),
-        nmols_title = Observable(""),
-        q_title = Observable(""),
-        nmols_time = [ Observable(Int[]) for _ in 1:4 ], # vector of observables
-        nmols_current = Observable(Int[]),
-        temperature = Observable([298.15]),
-        N1 = Observable(Int[500]),
-        N2 = Observable(Int[500]),
-        N3 = Observable(Int[0]),
-        N4 = Observable(Int[0]),
-        time = Observable(Float64[1.0]),
-    )
-    return obs
+function get_N(sim)
+    N1 = count(p -> p.color == sim.colors[1], sim.current_state)
+    N2 = count(p -> p.color == sim.colors[2], sim.current_state)
+    N3 = count(p -> p.color == sim.colors[3], sim.current_state)
+    N4 = count(p -> p.color == sim.colors[4], sim.current_state)
+    return (N1, N2, N3, N4)
 end
 
-@kwdef mutable struct SimulationState
+function compute_Q(sim)
+    N1, N2, N3, N4 = get_N(sim)
+    return (N3*N4)/(N1*N2)
+end
+
+function up!(obs::Observable, field::Symbol, value)
+    sim = obs[]
+    setfield!(sim, field, value)
+    obs[] = SimulationData(sim)
+    return nothing
+end
+
+yscale(sim) = sum(x -> x.color != :transparent, sim.initial_states)
+
+function main()
     sim = SimulationData()
-    obs = observables()
-    fig = Figure(size=(900, 500))
-    stop::Bool = false
-end
-
-function main(; simulation_state = SimulationState())
-    (; obs, fig) = simulation_state
+    obs = Observable(sim)
 
     #
     # Setup
     #
+    fig = Figure(size=(1200, 800))
     fig[1:2,1] = setup_grid = GridLayout(tellwidth=false)
     tb = setup_grid[1:7, 1] = [
-        Textbox(fig, placeholder="298.15", validator=Float64, width=100),
-        Textbox(fig, placeholder="500", validator=Int, width=100),
-        Textbox(fig, placeholder="500", validator=Int, width=100),
-        Textbox(fig, placeholder="0", validator=Int, width=100),
-        Textbox(fig, placeholder="0", validator=Int, width=100),
-        Textbox(fig, placeholder="1.0", validator=Float64, width=100),
+        Textbox(fig, placeholder=@lift(string(round($(obs).temperature; digits=2))), validator=Float64, width=100),
+        Textbox(fig, placeholder=@lift(string($(obs).N0[1])), validator=Int, width=100),
+        Textbox(fig, placeholder=@lift(string($(obs).N0[2])), validator=Int, width=100),
+        Textbox(fig, placeholder=@lift(string($(obs).N0[3])), validator=Int, width=100),
+        Textbox(fig, placeholder=@lift(string($(obs).N0[4])), validator=Int, width=100),
+        Textbox(fig, placeholder=@lift(string($(obs).time)), validator=Float64, width=100),
         Button(fig, label="Setup"), 
     ]
     on(tb[1].stored_string) do s
-        obs.temperature[] = [parse(Float64, s)]
+        up!(obs, :temperature, parse(Float32, s))
     end
     on(tb[2].stored_string) do s
-        obs.N1[] = [parse(Int, s)]
+        up!(obs, :N0, [i == 1 ? parse(Int, s) : obs[].N0[i] for i in eachindex(sim.colors)])
     end
     on(tb[3].stored_string) do s
-        obs.N2[] = [parse(Int, s)]
+        up!(obs, :N0, [i == 2 ? parse(Int, s) : obs[].N0[i] for i in eachindex(sim.colors)])
     end
     on(tb[4].stored_string) do s
-        obs.N3[] = [parse(Int, s)]
+        up!(obs, :N0, [i == 3 ? parse(Int, s) : obs[].N0[i] for i in eachindex(sim.colors)])
     end
     on(tb[5].stored_string) do s
-        obs.N4[] = [parse(Int, s)]
+        up!(obs, :N0, [i == 4 ? parse(Int, s) : obs[].N0[i] for i in eachindex(sim.colors)])
     end
     on(tb[6].stored_string) do s
-        obs.time[] = [parse(Float64, s)]
+        up!(obs, :time, parse(Float64, s))
     end
     on(tb[7].clicks) do _
-        setup!(simulation_state)
-        return nothing
+        setup!(fig, obs)
     end
 
     # Figure layout
-    Axis(fig[1:2,2], title=obs.step_title)
-    Axis(fig[1,3])
-    Axis(fig[2,3], title=obs.nmols_title)
+    Axis(fig[1:2,2], title=@lift("k₁ = "*string($(obs).kvec[1])*" k₂ = "*string($(obs).kvec[2])*" - Step = "*string($(obs).step)))
+    Axis(fig[1,3]; 
+        title=@lift("Histograma - N₀ = "*string($(obs).N0)),
+        xlabel="Tipo",
+        ylabel="Número",
+        limits=@lift((0, 5, 0, yscale($obs))),
+    )
+    text!(fig[1,3], @lift("Q = "*string(round(compute_Q($obs);digits=5))), position=@lift((4.0, 0.95*yscale($obs))))
+
+    Axis(fig[2,3], 
+        title=@lift("Número de Moléculas - N = ["*join(get_N($obs), ", ")*"]"),
+        xlabel="Tempo",
+        ylabel="Número",
+        limits=@lift((0, $(obs).time, 0, yscale($obs)))
+    )
+
     ax = Axis(fig[3,1:3])
     hidedecorations!(ax)
 
     # Setup simulation and plots
-    setup!(simulation_state)
+    setup!(fig, obs)
 
     # 
     # Buttons
@@ -119,12 +141,11 @@ function main(; simulation_state = SimulationState())
         Button(fig, label="Stop"),
     ]
     on(buttons[1].clicks) do _
-        @async simulate!(simulation_state)
+        @async simulate!(obs)
         return nothing
     end
     on(buttons[2].clicks) do _ 
-        simulation_state.stop = true
-        return nothing
+        up!(obs, :stop, true)
     end
 
     colsize!(fig.layout, 1, Relative(1/8))
@@ -134,35 +155,14 @@ function main(; simulation_state = SimulationState())
     return fig
 end
 
-function setup!(simulation_state)
-    (; obs, fig) = simulation_state
-
-    # Update simulation options
-    simulation_state.sim = SimulationData(;
-        temperature = first(obs.temperature[]),
-        nsteps = round(Int, 30 * 60 *first(obs.time[])),
-        N0 = [first(obs.N1[]), first(obs.N2[]), first(obs.N3[]), first(obs.N4[])],
+function setup!(fig, obs)
+    sim = obs[]
+    sim = SimulationData(
+        N0 = sim.N0,
+        temperature = sim.temperature,
+        time = sim.time
     )
-    (; sim) = simulation_state
-
-
-    #
-    # GUI properties
-    #
-    obs.positions[] = sim.initial_positions
-    obs.markercolor[] = [x.color for x in sim.initial_states]
-    obs.step_title[] = "k₁ = $(sim.kvec[1]), k₂ = $(sim.kvec[2]) - Step = 0"
-
-    # Number of molecules of each time, over time and current
-    for ic in eachindex(sim.colors)
-        obs.nmols_time[ic][] = vcat([count(x -> x.color == sim.colors[ic], sim.initial_states)],[0 for _ in 2:sim.nsteps])
-    end
-    obs.nmols_current[] = [ first(nmols_time[]) for nmols_time in obs.nmols_time ]
-
-    # Reaction quotient string
-    q = obs.nmols_current[][3]*obs.nmols_current[][4]/(obs.nmols_current[][1]*obs.nmols_current[][2])
-    obs.q_title[] = "Q = $(round(q, digits=5))"
-    obs.nmols_title[]="Número de Moléculas - N = [$(join(obs.nmols_current[], ", "))]"
+    obs[] = sim
 
     #
     # Scatter plot of the positions
@@ -171,41 +171,29 @@ function setup!(simulation_state)
     brd = round(Int, sim.box_size/50)
     ax.limits=(-brd, sim.box_size+brd, -brd, sim.box_size+brd)
     scatter!(fig[1:2,2],
-    	obs.positions,
+    	@lift($(obs).positions),
     	markersize=15,
-    	color=obs.markercolor,
+    	color=@lift(getfield.($(obs).current_state, :color)),
     	marker=[x.type for x in sim.initial_states],
     )
 
     #
     # Bar plot of the number of particules of each type
     #
-    yscale = sum(x -> x.color != :transparent, sim.initial_states)
     barplot!(fig[1,3], 
         [1,2,3,4],
-        obs.nmols_current,
-        color=sim.colors,
+        @lift([get_N($obs)...]),
+        color=@lift($(obs).colors),
     )
-    ax = content(fig[1,3])
-    ax.title="Histograma - N₀ = $(sim.N0)"
-    ax.xlabel="Tipo"
-    ax.ylabel="Número"
-    ax.limits=(0, 5, 0, yscale)
-
-    text!(fig[1,3], obs.q_title, position = (4.0, 0.95*yscale))
 
     #
     # Quantities over time
     #
-    ax = content(fig[2,3])
-    ax.xlabel="Tempo"
-    ax.ylabel="Número"
-    ax.limits=(0, first(obs.time[]), 0, yscale)
     for ic in eachindex(sim.colors)
         scatter!(fig[2,3], 
-            range(0.0, first(obs.time[]); length=sim.nsteps),
-            obs.nmols_time[ic],
-            color=sim.colors[ic],
+            @lift(range(0.0, $(obs).time; length=$(obs).nsteps)),    
+            @lift($(obs).N_over_time[ic]),
+            color=@lift($(obs).colors[ic]),
             markersize=5,
         )
     end
@@ -213,48 +201,45 @@ function setup!(simulation_state)
     return nothing
 end
 
-function simulate!(simulation_state)
-    (; sim, obs) = simulation_state
+function simulate!(obs)
+    sim = obs[]
+    sim.stop = false
     sys = ParticleSystem(
-    	xpositions=copy(sim.initial_positions),
+    	xpositions=copy(sim.positions),
     	unitcell=Float32[sim.box_size, sim.box_size],
     	cutoff=sim.cutoff,
-    	output=deepcopy(sim.initial_states),
+    	output=sim.current_state,
     	output_name=:states,
     	parallel=false,
     )
-    simulation_state.stop = false
     t0 = 90*sim.temperature/298.15 # for 298.15K, becomes 90, which is reasonable here
     velocities = randn(SVector{2,Float32}, sim.N)
     velocities, _ = thermalize!(velocities, t0)
     for istep in 1:sim.nsteps
-    	current_states = map_pairwise!(
+    	current_state = map_pairwise!(
             (x,y,i,j,d2,out) -> update_particles!(x,y,i,j,d2,out,sys,sim.kvec,sim.colors), 
             sys
         )
         thermalize!(velocities, t0)
-    	for i in eachindex(sys.xpositions, velocities, current_states)
+    	for i in eachindex(sys.xpositions, velocities, current_state)
     	 	p = sys.xpositions[i]
     		v = velocities[i]
-        	p = p + v * sim.dt + current_states[i].f * sim.dt^2
-    		v = v + current_states[i].f * sim.dt
+        	p = p + v * sim.dt + current_state[i].f * sim.dt^2
+    		v = v + current_state[i].f * sim.dt
     		p, v = wall_bump(p, v, sim.box_size)
     		sys.xpositions[i] = p
     		velocities[i] = v
     	end
-    	obs.positions[] = sys.xpositions
-    	obs.markercolor[] = [x.color for x in current_states]
-        obs.step_title[] = "k₁ = $(sim.kvec[1]), k₂ = $(sim.kvec[2]) - Step = $istep"
+        # Update simulation data object and figures
+        sim.step = istep
+        sim.positions .= sys.xpositions
+        N_current = get_N(sim)
         for ic in eachindex(sim.colors)
-            obs.nmols_time[ic][][istep] = count(x -> x.color == sim.colors[ic], current_states)
-            obs.nmols_time[ic][] = obs.nmols_time[ic][]
+            sim.N_over_time[ic][istep] = N_current[ic]
         end
-        obs.nmols_current[] = [ nmols_time[][istep] for nmols_time in obs.nmols_time ]
-        obs.nmols_title[]="Número de Moléculas - N = [$(join(obs.nmols_current[], ", "))]"
-        q = obs.nmols_current[][3]*obs.nmols_current[][4]/(obs.nmols_current[][1]*obs.nmols_current[][2])
-        obs.q_title[] = "Q = $(round(q, digits=5))"
+        obs[].stop && break
+        obs[] = SimulationData(sim)
     	sleep(1/30)
-        simulation_state.stop && break
     end
     return nothing
 end
