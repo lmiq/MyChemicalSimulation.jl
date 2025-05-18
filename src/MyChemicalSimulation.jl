@@ -24,7 +24,7 @@ end
     dt::Float32 = 1.0f0
     time::Float64 = 1.0
     step::Int = 0
-    nsteps::Int = 100
+    nsteps::Int = round(Int, 60 * 30 * time)
     colors::Vector{Symbol} = [:blue, :red, :green, :orange]
     positions = box_size * rand(Point2f, N)
     initial_states::Vector{ParticleState} = vcat(
@@ -80,23 +80,23 @@ function main()
     fig[1:2,1] = setup_grid = GridLayout(tellwidth=false)
 
     setup_grid[1:6, 1] = [
-        Label(fig, "Temperatura:", justification=:right),
-        Label(fig, "Azul:", justification=:right),
-        Label(fig, "Vermelho:", justification=:right),
-        Label(fig, "Laranja:", justification=:right),
-        Label(fig, "Verde:", justification=:right),
-        Label(fig, "tempo:", justification=:right),
+        Label(fig, "Temperatura:", halign=:right),
+        Label(fig, "Azul:", halign=:right),
+        Label(fig, "Vermelho:", halign=:right),
+        Label(fig, "Laranja:", halign=:right),
+        Label(fig, "Verde:", halign=:right),
+        Label(fig, "tempo:", halign=:right),
     ]
     setup_grid[1:6, 3] = [
-        Label(fig, "K", justification=:left),
-        Label(fig, "", justification=:left),
-        Label(fig, "", justification=:left),
-        Label(fig, "", justification=:left),
-        Label(fig, "", justification=:left),
-        Label(fig, "min", justification=:left),
+        Label(fig, "K", halign=:left),
+        Label(fig, "", halign=:left),
+        Label(fig, "", halign=:left),
+        Label(fig, "", halign=:left),
+        Label(fig, "", halign=:left),
+        Label(fig, "min", halign=:left),
     ]
     tb = setup_grid[1:6, 2] = [
-        Textbox(fig, placeholder=@lift(string(round($(obs).temperature; digits=2))), validator=Float64, width=100),
+        Textbox(fig, placeholder=@lift(string(round($(obs).temperature; digits=2))), validator=Float64, width=100, halign=:right),
         Textbox(fig, placeholder=@lift(string($(obs).N0[1])), validator=Int, width=100),
         Textbox(fig, placeholder=@lift(string($(obs).N0[2])), validator=Int, width=100),
         Textbox(fig, placeholder=@lift(string($(obs).N0[3])), validator=Int, width=100),
@@ -202,8 +202,7 @@ function setup!(fig, obs)
     #
     for ic in eachindex(sim.colors)
         scatter!(fig[2,3], 
-            @lift(range(0.0, $(obs).time; length=$(obs).nsteps)),    
-            @lift($(obs).N_over_time[ic]),
+            @lift([(i*$(obs).time/$(obs).nsteps, $(obs).N_over_time[ic][i]) for i in 1:$(obs).nsteps]),
             color=@lift($(obs).colors[ic]),
             markersize=5,
         )
