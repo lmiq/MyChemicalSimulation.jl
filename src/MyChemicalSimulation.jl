@@ -69,7 +69,7 @@ end
 
 yscale(sim) = sum(x -> x.color != :transparent, sim.initial_states)
 
-function simulate(;N0=[500,500,0,0],time=1.0)
+function simulate(;N0=[500,500,0,0],time=1.0, precompile=false)
     sim = SimulationData(;N0,time)
     obs = Observable(sim)
 
@@ -206,7 +206,11 @@ function simulate(;N0=[500,500,0,0],time=1.0)
     colsize!(fig.layout, 2, Relative(5/10))
     colsize!(fig.layout, 3, Relative(3/10))
 
-    return fig
+    if precompile
+        return fig, obs
+    else
+        return fig
+    end
 end
 
 function setup!(fig, obs)

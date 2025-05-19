@@ -5,6 +5,8 @@ using PrecompileTools: @setup_workload, @compile_workload
     @compile_workload begin
         # all calls in this block will be precompiled, regardless of whether
         # they belong to your package or not (on Julia 1.8 and higher)
-        simulate(N0=[10,10,10,10],time=0.001)
+        fig, obs = simulate(;N0=[10,10,10,10],time=0.001,precompile=true)
+        MyChemicalSimulation.setup!(fig, obs)
+        MyChemicalSimulation.simulate!(obs)
     end
 end
