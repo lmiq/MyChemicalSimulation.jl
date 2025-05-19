@@ -263,6 +263,10 @@ end
 function simulate!(obs)
     sim = obs[]
     sim.stop = false
+    for ic in eachindex(sim.colors)
+        n = sim.N_over_time[ic]
+        deleteat!(n, 1:lastindex(n)-1)
+    end
     sys = ParticleSystem(
     	xpositions=copy(sim.positions),
     	unitcell=Float32[sim.box_size, sim.box_size],
