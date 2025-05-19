@@ -60,6 +60,13 @@ function compute_Q(sim)
     return (N3*N4)/(N1*N2)
 end
 
+_unit(ktype) = ktype == "k" ? "mol⁻¹ s⁻¹" : "kcal mol⁻¹"
+R = 1.9872e-3 # kcal/mol
+Ea(k,T) = -R * T * log(k)
+k_from_Ea(Ea, T) = exp(-Ea/(R*T))
+k_or_Ea(k, T, ktype) = ktype == "k" ? k : Ea(k,T)
+k_string(sim, ktype, i) = string(round(k_or_Ea(sim.kvec[i], sim.temperature, ktype[i]); digits=2))
+
 function up!(obs::Observable, field::Symbol, value)
     sim = obs[]
     setfield!(sim, field, value)
@@ -86,16 +93,26 @@ function simulate(;N0=[500,500,0,0],time=1.0, precompile=false)
     fig = Figure(size=(1400, 700))
     fig[1:2,1] = setup_grid = GridLayout(tellwidth=false)
 
+    ktype = Observable(["k","k"]) # or "Ea" for each element
+
     cgrid = setup_grid[1:8, 1] = [
         Label(fig, "Temperatura:", halign=:right),
-        Label(fig, "k₁:", halign=:right),
-        Label(fig, "k₂:", halign=:right),
+        Menu(fig, options = ["k₁:", "Eₐ₁:"], halign=:right),
+        Menu(fig, options = ["k₂:", "Eₐ₂:"], halign=:right),
         Menu(fig, options = ["Azul", "Transparente"], halign=:right),
         Menu(fig, options = ["Vermelho", "Transparente"]),
         Menu(fig, options = ["Laranja", "Transparente"]),
         Menu(fig, options = ["Verde", "Transparente"]),
         Label(fig, "tempo:", halign=:right),
     ]
+    on(cgrid[2].selection) do s
+        ktype[][1] = s == "k₁:" ? "k" : "Ea"
+        notify(ktype)
+    end
+    on(cgrid[3].selection) do s
+        ktype[][2] = s == "k₂:" ? "k" : "Ea"
+        notify(ktype)
+    end
     on(cgrid[4].selection) do s
         colors = obs[].colors
         colors[1] = s == "Transparente" ? :transparent : :blue
@@ -117,10 +134,11 @@ function simulate(;N0=[500,500,0,0],time=1.0, precompile=false)
         up!(obs, :colors, colors)
     end
 
+
     setup_grid[1:8, 3] = [
         Label(fig, "K", halign=:left),
-        Label(fig, "mol⁻¹ s⁻¹", halign=:left),
-        Label(fig, "mol⁻¹ s⁻¹", halign=:left),
+        Label(fig, @lift(_unit($(ktype)[1])), halign=:left),
+        Label(fig, @lift(_unit($(ktype)[2])), halign=:left),
         Label(fig, "", halign=:left),
         Label(fig, "", halign=:left),
         Label(fig, "", halign=:left),
@@ -130,8 +148,8 @@ function simulate(;N0=[500,500,0,0],time=1.0, precompile=false)
     tbw = 60 
     tb = setup_grid[1:8, 2] = [
         Textbox(fig, placeholder=@lift(string(round($(obs).temperature; digits=2))), validator=Float64, width=tbw),
-        Textbox(fig, placeholder=@lift(string(round($(obs).kvec[1]; digits=2))), validator=Float64, width=tbw),
-        Textbox(fig, placeholder=@lift(string(round($(obs).kvec[2]; digits=2))), validator=Float64, width=tbw),
+        Textbox(fig, placeholder=@lift(k_string($obs,$ktype,1)), validator=Float64, width=tbw),
+        Textbox(fig, placeholder=@lift(k_string($obs,$ktype,2)), validator=Float64, width=tbw),
         Textbox(fig, placeholder=@lift(string($(obs).N0[1])), validator=Int, width=tbw),
         Textbox(fig, placeholder=@lift(string($(obs).N0[2])), validator=Int, width=tbw),
         Textbox(fig, placeholder=@lift(string($(obs).N0[3])), validator=Int, width=tbw),
@@ -139,13 +157,21 @@ function simulate(;N0=[500,500,0,0],time=1.0, precompile=false)
         Textbox(fig, placeholder=@lift(string($(obs).time)), validator=Float64, width=tbw),
     ]
     on(tb[1].stored_string) do s
-        up!(obs, :temperature, parse(Float32, s))
+        T = parse(Float32, s)
+        k1 = ktype[][1] == "Ea" ? k_from_Ea(Ea(obs[].kvec[1], obs[].temperature), T) : obs[].kvec[1]
+        k2 = ktype[][2] == "Ea" ? k_from_Ea(Ea(obs[].kvec[2], obs[].temperature), T) : obs[].kvec[2]
+        up!(obs, :kvec, [k1, k2])
+        up!(obs, :temperature, T)
     end
     on(tb[2].stored_string) do s
-        up!(obs, :kvec, [parse(Float32, s), obs[].kvec[2]])
+        val = parse(Float32, s) 
+        k = ktype[][1] == "k" ? val : k_from_Ea(val, obs[].temperature)
+        up!(obs, :kvec, [k, obs[].kvec[2]])
     end
     on(tb[3].stored_string) do s
-        up!(obs, :kvec, [obs[].kvec[1], parse(Float32, s)])
+        val = parse(Float32, s) 
+        k = ktype[][2] == "k" ? val : k_from_Ea(val, obs[].temperature)
+        up!(obs, :kvec, [obs[].kvec[1], k])
     end
     on(tb[4].stored_string) do s
         up!(obs, :N0, [i == 1 ? parse(Int, s) : obs[].N0[i] for i in eachindex(sim.colors)])
@@ -187,10 +213,14 @@ function simulate(;N0=[500,500,0,0],time=1.0, precompile=false)
     colsize!(setup_grid, 3, Fixed(80))
 
     # Figure layout
-    ax = Axis(fig[1:2,2], title=@lift(
-            "k₁ = "*string(round($(obs).kvec[1]; digits=3))*
-            " k₂ = "*string(round($(obs).kvec[2]; digits=3))*" - Step = "*string($(obs).step))
-        )
+    ax = Axis(fig[1:2,2], 
+        title=@lift(
+            "k₁ = "*string(round($(obs).kvec[1]; digits=4))*" mol⁻¹ s⁻¹ "*
+            "Eₐ₁ = "*string(round(Ea($(obs).kvec[1],$(obs).temperature); digits=2))*" kcal mol⁻¹ \n"*
+            "k₂ = "*string(round($(obs).kvec[2]; digits=4))*" mol⁻¹ s⁻¹ "*
+            "Eₐ₂ = "*string(round(Ea($(obs).kvec[2],$(obs).temperature); digits=2))*" kcal mol⁻¹ \n"
+        ),
+    )
     hidedecorations!(ax)
 
     Axis(fig[1,3]; 
