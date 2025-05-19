@@ -63,7 +63,14 @@ end
 function up!(obs::Observable, field::Symbol, value)
     sim = obs[]
     setfield!(sim, field, value)
-    obs[] = SimulationData(sim)
+    sim = SimulationData(
+        N0 = sim.N0,
+        temperature = sim.temperature,
+        time = sim.time,
+        kvec = sim.kvec,
+        colors = sim.colors,
+    )
+    obs[] = sim
     return nothing
 end
 
@@ -158,9 +165,9 @@ function simulate(;N0=[500,500,0,0],time=1.0, precompile=false)
 
     setup_grid[8,1] = [ Label(fig, "") ]
 
-    sb = setup_grid[9, 1] = [ Button(fig, label="Setup") ] 
-    on(sb[1].clicks) do _
-        setup!(fig, obs)
+    rb = setup_grid[9, 1] = [ Button(fig, label="Restart") ] 
+    on(rb[1].clicks) do _
+        setup!(fig,obs)
     end
 
     rb = setup_grid[9, 2] = [ Button(fig, label="Run") ] 
@@ -170,7 +177,9 @@ function simulate(;N0=[500,500,0,0],time=1.0, precompile=false)
 
     stopb = setup_grid[9, 3] = [ Button(fig, label="Stop") ] 
     on(stopb[1].clicks) do _ 
-        up!(obs, :stop, true)
+        sim = obs[]
+        sim.stop = true
+        obs[] = sim
     end
 
     colsize!(setup_grid, 1, Fixed(90))
@@ -263,10 +272,20 @@ end
 function simulate!(obs)
     sim = obs[]
     sim.stop = false
-    for ic in eachindex(sim.colors)
-        n = sim.N_over_time[ic]
-        deleteat!(n, 1:lastindex(n)-1)
+    if sim.step > 0 
+        if sim.step == sim.nsteps
+            sim.nsteps *= 2
+            sim.time *= 2
+            nsteps_to_run = sim.nsteps
+        else
+            nsteps_to_run = sim.nsteps - sim.step
+        end
+        sim = SimulationData(sim)
+        obs[] = sim
+    else
+        nsteps_to_run = sim.nsteps
     end
+
     sys = ParticleSystem(
     	xpositions=copy(sim.positions),
     	unitcell=Float32[sim.box_size, sim.box_size],
@@ -278,7 +297,9 @@ function simulate!(obs)
     t0 = 90*sim.temperature/298.15 # for 298.15K, becomes 90, which is reasonable here
     velocities = randn(SVector{2,Float32}, sim.N)
     velocities, _ = thermalize!(velocities, t0)
-    for istep in 1:sim.nsteps
+    istep = sim.step
+    for _ in 1:nsteps_to_run
+        istep += 1
     	current_state = map_pairwise!(
             (x,y,i,j,d2,out) -> update_particles!(x,y,i,j,d2,out,sys,sim.kvec,sim.colors), 
             sys
