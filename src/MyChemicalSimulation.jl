@@ -36,7 +36,7 @@ end
     )
     current_state::Vector{ParticleState} = deepcopy(initial_states)
     N_over_time::Vector{Vector{Int}} = [ [N0[1]], [N0[2]], [N0[3]], [N0[4]] ]
-    stop::Bool = false
+    stop::Bool = true
 end
 SimulationData(sim::SimulationData) =
     SimulationData((field = getfield(sim, field) for field in fieldnames(SimulationData))...)
@@ -69,8 +69,8 @@ end
 
 yscale(sim) = sum(x -> x.color != :transparent, sim.initial_states)
 
-function simulate()
-    sim = SimulationData()
+function simulate(;N0=[500,500,0,0],time=1.0)
+    sim = SimulationData(;N0,time)
     obs = Observable(sim)
 
     #
@@ -160,10 +160,6 @@ function simulate()
 
     sb = setup_grid[9, 1] = [ Button(fig, label="Setup") ] 
     on(sb[1].clicks) do _
-        for ic in eachindex(sim.colors)
-            sim.N_over_time[ic] = Point2f[]
-        end
-        obs[] = sim
         setup!(fig, obs)
     end
 
@@ -214,13 +210,13 @@ function simulate()
 end
 
 function setup!(fig, obs)
-    sim = obs[]
+
     sim = SimulationData(
-        N0 = sim.N0,
-        temperature = sim.temperature,
-        time = sim.time,
-        kvec = sim.kvec,
-        colors = sim.colors,
+        N0 = obs[].N0,
+        temperature = obs[].temperature,
+        time = obs[].time,
+        kvec = obs[].kvec,
+        colors = obs[].colors,
     )
     obs[] = sim
 
@@ -232,9 +228,9 @@ function setup!(fig, obs)
     ax.limits=(-brd, sim.box_size+brd, -brd, sim.box_size+brd)
     scatter!(fig[1:2,2],
     	@lift($(obs).positions),
-    	markersize=15,
+    	markersize=@lift(max(5, min(15, 5 + 1000/$(obs).box_size))),
     	color=@lift(getfield.($(obs).current_state, :color)),
-    	marker=[x.type for x in sim.initial_states],
+    	marker=@lift(getfield.($(obs).current_state, :type)),
     )
 
     #
@@ -302,5 +298,7 @@ function simulate!(obs)
     end
     return nothing
 end
+
+include("./precompilation.jl")
 
 end
