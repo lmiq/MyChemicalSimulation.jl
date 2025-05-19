@@ -160,6 +160,10 @@ function simulate()
 
     sb = setup_grid[9, 1] = [ Button(fig, label="Setup") ] 
     on(sb[1].clicks) do _
+        for ic in eachindex(sim.colors)
+            sim.N_over_time[ic] = Point2f[]
+        end
+        obs[] = sim
         setup!(fig, obs)
     end
 
