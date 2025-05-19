@@ -15,9 +15,9 @@ export simulate
 end
 
 @kwdef mutable struct SimulationData
-    N0::Vector{Int} = [500, 500, 0, 0]
+    N0::Vector{Int} = [500, 300, 100, 200]
     N::Int = sum(N0)
-    kvec::Vector{Float64} = [0.5, 0.5]
+    kvec::Vector{Float64} = [0.02, 0.02]
     temperature::Float32 = 298.15
     enthalpy::Float32 = 0.0
     cutoff::Float32 = 3.0f0
