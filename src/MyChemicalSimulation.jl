@@ -248,6 +248,7 @@ function simulate(;N0=[500,500,0,0],time=1.0, precompile=false)
 
     # Figure layout
     ax = Axis(fig[1:2,2], 
+        aspect=1,
         title=@lift(
             "k₁ = "*string(round($(obs).kvec[1]; digits=4))*" mol⁻¹ s⁻¹ "*
             "Eₐ₁ = "*string(round(Ea($(obs).kvec[1],$(obs).temperature); digits=2))*" kcal mol⁻¹ \n"*
@@ -308,7 +309,7 @@ function setup!(fig, obs)
     ax.limits=(-brd, sim.box_size+brd, -brd, sim.box_size+brd)
     scatter!(fig[1:2,2],
     	@lift($(obs).positions),
-    	markersize=@lift(max(5, min(15, 5 + 1000/$(obs).box_size))),
+    	markersize=@lift(max(10, min(15, 5 + 1000/$(obs).box_size))),
     	color=@lift(getfield.($(obs).current_state, :color)),
     	marker=@lift(getfield.($(obs).current_state, :type)),
     )
