@@ -8,6 +8,8 @@ using Statistics: mean
 
 export simulate
 
+include("./eaplot.jl")
+
 @kwdef mutable struct ParticleState
 	f::SVector{2,Float32} = zero(SVector{2,Float32}) # force
 	color::Symbol = :blue
@@ -62,7 +64,8 @@ end
 
 _unit(ktype) = ktype == "k" ? "mol⁻¹ s⁻¹" : "kcal mol⁻¹"
 R = 1.9872e-3 # kcal/mol
-Ea(k,T) = -R * T * log(k)
+Ea(k::Real,T::Real) = -R * T * log(k)
+Ea(sim::SimulationData, i::Int) = Ea(sim.kvec[i], sim.temperature)
 k_from_Ea(Ea, T) = exp(-Ea/(R*T))
 k_or_Ea(k, T, ktype) = ktype == "k" ? k : Ea(k,T)
 k_string(sim, ktype, i) = string(round(k_or_Ea(sim.kvec[i], sim.temperature, ktype[i]); digits=2))
@@ -207,6 +210,23 @@ function simulate(;N0=[500,500,0,0],time=1.0, precompile=false)
         sim.stop = true
         obs[] = sim
     end
+
+    px = -10:0.1:10
+    p = @lift([create_piecewise_parabolas( [ 0.0, Ea($obs,1), Ea($obs,1) - Ea($obs,2) ], 5.0, 0.0)])
+    plimits = @lift begin
+        y = map($(p)[1],px)
+        return (minimum(y), maximum(y))
+    end
+    ax = Axis(
+            setup_grid[10, 1:3], 
+            width=200,
+            xticksvisible=false,
+            xticklabelsvisible=false,
+            ylabel="E / kcal mol⁻¹",
+    )
+    lines!(ax, px, @lift(map($(p)[1],px))) 
+    rowsize!(setup_grid, 10, Fixed(100))
+    @lift(ylims!(ax, $plimits))
 
     colsize!(setup_grid, 1, Fixed(90))
     colsize!(setup_grid, 2, Fixed(60))
