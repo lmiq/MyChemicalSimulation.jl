@@ -57,7 +57,7 @@ function compute_Q(sim)
     N2 = mean(sim.N_over_time[2][ihalf:end])
     N3 = mean(sim.N_over_time[3][ihalf:end])
     N4 = mean(sim.N_over_time[4][ihalf:end])
-    return (N3*N4)/(N1*N2)
+    return (N3*N4)/(N1*N2), 100*(N3/(N1+N3)), 100*(N4/(N2+N4))
 end
 
 _unit(ktype) = ktype == "k" ? "mol⁻¹ s⁻¹" : "kcal mol⁻¹"
@@ -229,8 +229,6 @@ function simulate(;N0=[500,500,0,0],time=1.0, precompile=false)
         ylabel="Número",
         limits=@lift((0, 5, 0, yscale($obs))),
     )
-    text!(fig[1,3], @lift("Q = "*string(round(compute_Q($obs);digits=5))), position=@lift((3.8, 0.90*yscale($obs))))
-
     Axis(fig[2,3], 
         title=@lift("Número de Moléculas - N = ["*join(get_N($obs), ", ")*"]"),
         xlabel="Tempo",
@@ -240,6 +238,11 @@ function simulate(;N0=[500,500,0,0],time=1.0, precompile=false)
 
     # Setup simulation and plots
     setup!(fig, obs)
+
+    q = @lift(compute_Q($obs))
+    text!(fig[1,3], @lift("Q = "*string(round($(q)[1];digits=5))), position=@lift((3.8, 0.90*yscale($obs))))
+    text!(fig[1,3], @lift("α₁ = "*string(round($(q)[2];digits=3))*"%"), position=@lift((3.8, 0.85*yscale($obs))))
+    text!(fig[1,3], @lift("α₂ = "*string(round($(q)[3];digits=3))*"%"), position=@lift((3.8, 0.80*yscale($obs))))
 
     colsize!(fig.layout, 1, Fixed(240))
     colsize!(fig.layout, 2, Relative(5/10))
