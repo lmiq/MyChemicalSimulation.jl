@@ -10,23 +10,17 @@ Entre no prompt e copie e cole os comandos (isto pode demorar vários minutos,
 porque vai instalar todas as dependências):
 
 ```julia
-julia> import Pkg
-
-julia> Pkg.activate("MyChemicalSimulation"; shared=true)
-
 julia> import Pkg; Pkg.add("https://github.com/lmiq/MyChemicalSimulation.jl")
 
 julia> using MyChemicalSimulation
 ```
 
+Uma vez terminado todo o processo, você verá outra vez o prompt `julia>`.
+
 ## Como usar
 
 ```julia
-julia> import Pkg
-
-julia> Pkg.activate("MyChemicalSimulation"; shared=true)
-
-julia> using MyChemicalSimulation
+julia> using MyChemicalSimulation 
 
 julia> simulate()
 ```
