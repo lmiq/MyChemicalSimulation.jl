@@ -211,22 +211,36 @@ function simulate(;N0=[500,500,0,0],time=1.0, precompile=false)
         obs[] = sim
     end
 
-    px = -10:0.1:10
+    px = -10:0.01:10
     p = @lift([create_piecewise_parabolas( [ 0.0, Ea($obs,1), Ea($obs,1) - Ea($obs,2) ], 5.0, 0.0)])
-    plimits = @lift begin
+    plimits = @lift(begin
         y = map($(p)[1],px)
-        return (minimum(y), maximum(y))
-    end
+        ymax = Ea($obs, 1)
+        yr = ymax - minimum(y)
+        (-10, 10, minimum(y) - 0.25, ymax + 0.1*yr)
+    end)
     ax = Axis(
             setup_grid[10, 1:3], 
             width=200,
             xticksvisible=false,
             xticklabelsvisible=false,
             ylabel="E / kcal mol⁻¹",
+            limits=plimits,
     )
+    scatter!(
+        @lift([
+            (-6, Ea($obs, 1)),
+            (-4, Ea($obs, 1)),
+            ( 4, Ea($obs, 1)),
+            ( 6, Ea($obs, 1)),
+        ]),
+    	markersize=10,
+    	color=@lift($(obs).colors),
+    	marker=[:circle, :star5, :circle, :star5],
+    )
+
     lines!(ax, px, @lift(map($(p)[1],px))) 
     rowsize!(setup_grid, 10, Fixed(100))
-    @lift(ylims!(ax, $plimits))
 
     colsize!(setup_grid, 1, Fixed(90))
     colsize!(setup_grid, 2, Fixed(60))
