@@ -149,15 +149,16 @@ function simulate(;N0=[500,500,0,0],time=1.0, precompile=false)
         Label(fig, "min", halign=:left),
     ]
     tbw = 60 
+    tbo(T) = (validator=T, width=60, reset_on_defocus=true) 
     tb = setup_grid[1:8, 2] = [
-        Textbox(fig, placeholder=@lift(string(round($(obs).temperature; digits=2))), validator=Float64, width=tbw),
-        Textbox(fig, placeholder=@lift(k_string($obs,$ktype,1)), validator=Float64, width=tbw),
-        Textbox(fig, placeholder=@lift(k_string($obs,$ktype,2)), validator=Float64, width=tbw),
-        Textbox(fig, placeholder=@lift(string($(obs).N0[1])), validator=Int, width=tbw),
-        Textbox(fig, placeholder=@lift(string($(obs).N0[2])), validator=Int, width=tbw),
-        Textbox(fig, placeholder=@lift(string($(obs).N0[3])), validator=Int, width=tbw),
-        Textbox(fig, placeholder=@lift(string($(obs).N0[4])), validator=Int, width=tbw),
-        Textbox(fig, placeholder=@lift(string($(obs).time)), validator=Float64, width=tbw),
+        Textbox(fig; placeholder=@lift(string(round($(obs).temperature; digits=2))), tbo(Float64)...),
+        Textbox(fig; placeholder=@lift(k_string($obs,$ktype,1)), tbo(Float64)...),
+        Textbox(fig; placeholder=@lift(k_string($obs,$ktype,2)), tbo(Float64)...),
+        Textbox(fig; placeholder=@lift(string($(obs).N0[1])), tbo(Int)...),
+        Textbox(fig; placeholder=@lift(string($(obs).N0[2])), tbo(Int)...),
+        Textbox(fig; placeholder=@lift(string($(obs).N0[3])), tbo(Int)...),
+        Textbox(fig; placeholder=@lift(string($(obs).N0[4])), tbo(Int)...),
+        Textbox(fig; placeholder=@lift(string($(obs).time)), tbo(Float64)...),
     ]
     on(tb[1].stored_string) do s
         T = parse(Float32, s)
@@ -168,12 +169,12 @@ function simulate(;N0=[500,500,0,0],time=1.0, precompile=false)
     end
     on(tb[2].stored_string) do s
         val = parse(Float32, s) 
-        k = ktype[][1] == "k" ? max(1e-10,val) : k_from_Ea(val, obs[].temperature)
+        k = ktype[][1] == "k" ? max(1e-10,min(1-1e-10, val)) : k_from_Ea(val, obs[].temperature)
         up!(obs, :kvec, [k, obs[].kvec[2]])
     end
     on(tb[3].stored_string) do s
         val = parse(Float32, s) 
-        k = ktype[][2] == "k" ? max(1e-10,val) : k_from_Ea(val, obs[].temperature)
+        k = ktype[][2] == "k" ? max(1e-10,min(1-1e-10,val)) : k_from_Ea(val, obs[].temperature)
         up!(obs, :kvec, [obs[].kvec[1], k])
     end
     on(tb[4].stored_string) do s
