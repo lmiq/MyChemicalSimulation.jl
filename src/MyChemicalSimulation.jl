@@ -104,8 +104,8 @@ function simulate(;N0=[500,500,0,0],time=1.0, precompile=false)
         Menu(fig, options = ["k₂:", "Eₐ₂:"], halign=:right),
         Menu(fig, options = ["Azul", "Transparente"], halign=:right),
         Menu(fig, options = ["Vermelho", "Transparente"]),
-        Menu(fig, options = ["Laranja", "Transparente"]),
         Menu(fig, options = ["Verde", "Transparente"]),
+        Menu(fig, options = ["Laranja", "Transparente"]),
         Label(fig, "tempo:", halign=:right),
     ]
     on(cgrid[2].selection) do s
@@ -142,10 +142,10 @@ function simulate(;N0=[500,500,0,0],time=1.0, precompile=false)
         Label(fig, "K", halign=:left),
         Label(fig, @lift(_unit($(ktype)[1])), halign=:left),
         Label(fig, @lift(_unit($(ktype)[2])), halign=:left),
-        Label(fig, "", halign=:left),
-        Label(fig, "", halign=:left),
-        Label(fig, "", halign=:left),
-        Label(fig, "", halign=:left),
+        Label(fig, "mol", halign=:left),
+        Label(fig, "mol", halign=:left),
+        Label(fig, "mol", halign=:left),
+        Label(fig, "mol", halign=:left),
         Label(fig, "min", halign=:left),
     ]
     tbw = 60 
@@ -168,12 +168,12 @@ function simulate(;N0=[500,500,0,0],time=1.0, precompile=false)
     end
     on(tb[2].stored_string) do s
         val = parse(Float32, s) 
-        k = ktype[][1] == "k" ? val : k_from_Ea(val, obs[].temperature)
+        k = ktype[][1] == "k" ? max(1e-10,val) : k_from_Ea(val, obs[].temperature)
         up!(obs, :kvec, [k, obs[].kvec[2]])
     end
     on(tb[3].stored_string) do s
         val = parse(Float32, s) 
-        k = ktype[][2] == "k" ? val : k_from_Ea(val, obs[].temperature)
+        k = ktype[][2] == "k" ? max(1e-10,val) : k_from_Ea(val, obs[].temperature)
         up!(obs, :kvec, [obs[].kvec[1], k])
     end
     on(tb[4].stored_string) do s
@@ -226,6 +226,10 @@ function simulate(;N0=[500,500,0,0],time=1.0, precompile=false)
             xticklabelsvisible=false,
             ylabel="E / kcal mol⁻¹",
             limits=plimits,
+            xlabel=@lift(
+                "Eₐ₁ = "*string(round(Ea($(obs).kvec[1],$(obs).temperature); digits=2))*" kcal mol⁻¹\n"*
+                "Eₐ₂ = "*string(round(Ea($(obs).kvec[2],$(obs).temperature); digits=2))*" kcal mol⁻¹"
+            ),
     )
     scatter!(
         @lift([
@@ -250,10 +254,9 @@ function simulate(;N0=[500,500,0,0],time=1.0, precompile=false)
     ax = Axis(fig[1:2,2], 
         aspect=1,
         title=@lift(
-            "k₁ = "*string(round($(obs).kvec[1]; digits=4))*" mol⁻¹ s⁻¹ "*
-            "Eₐ₁ = "*string(round(Ea($(obs).kvec[1],$(obs).temperature); digits=2))*" kcal mol⁻¹ \n"*
-            "k₂ = "*string(round($(obs).kvec[2]; digits=4))*" mol⁻¹ s⁻¹ "*
-            "Eₐ₂ = "*string(round(Ea($(obs).kvec[2],$(obs).temperature); digits=2))*" kcal mol⁻¹ \n"
+            "K = "*string(round($(obs).kvec[1]/$(obs).kvec[2];digits=3))*"; "* 
+            "k₁ = "*string(round($(obs).kvec[1]; digits=4))*" mol⁻¹ s⁻¹; "*
+            "k₂ = "*string(round($(obs).kvec[2]; digits=4))*" mol⁻¹ s⁻¹ "
         ),
     )
     hidedecorations!(ax)
@@ -275,9 +278,12 @@ function simulate(;N0=[500,500,0,0],time=1.0, precompile=false)
     setup!(fig, obs)
 
     q = @lift(compute_Q($obs))
-    text!(fig[1,3], @lift("Q = "*string(round($(q)[1];digits=5))), position=@lift((3.8, 0.90*yscale($obs))))
-    text!(fig[1,3], @lift("α₁ = "*string(round($(q)[2];digits=3))*"%"), position=@lift((3.8, 0.85*yscale($obs))))
-    text!(fig[1,3], @lift("α₂ = "*string(round($(q)[3];digits=3))*"%"), position=@lift((3.8, 0.80*yscale($obs))))
+    text!(fig[1,3], 
+        @lift("Q = "*string(round($(q)[1];digits=3))),
+        position=@lift((0.2, 0.90*yscale($obs)))
+    )
+    text!(fig[1,3], @lift(" α₁ = "*string(round($(q)[2];digits=2))*"%"), position=@lift((2.4, 0.90*yscale($obs))))
+    text!(fig[1,3], @lift(" α₂ = "*string(round($(q)[3];digits=2))*"%"), position=@lift((3.6, 0.90*yscale($obs))))
 
     colsize!(fig.layout, 1, Fixed(240))
     colsize!(fig.layout, 2, Relative(5/10))
