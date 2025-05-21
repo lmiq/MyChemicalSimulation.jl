@@ -1,7 +1,7 @@
 using Documenter
 #using MyChemicalSimulation
 makedocs(
-    modules=[]
+    modules=Module[],
     sitename="MyChemicalSimulation.jl",
     pages = [
         "Início" => "index.md",
