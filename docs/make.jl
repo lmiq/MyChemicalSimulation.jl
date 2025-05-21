@@ -1,10 +1,9 @@
 import Pkg
 Pkg.add("Documenter")
-push!(LOAD_PATH,"../")
+push!(LOAD_PATH,"../src")
 using Documenter
 using MyChemicalSimulation
 makedocs(
-    modules=[MyChemicalSimulation],
     sitename="MyChemicalSimulation.jl",
     pages = [
         "Início" => "index.md",
