@@ -1,3 +1,6 @@
+[![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://lmiq.github.io/MyChemicalSimulation.jl/stable)
+[![Dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://lmiq.github.io/MyChemicalSimulation.jl/dev)
+
 # MyChemicalSimulation
 
 Simula uma reação do tipo A + B -> C + D
