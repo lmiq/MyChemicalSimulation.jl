@@ -7,8 +7,6 @@ Simula uma reação do tipo A + B -> C + D
 
 ## Como instalar
 
-Isto só precisa ser feito uma vez. 
-
 Instale a linguagem Julia de https://julialang.org/
 
 Entre no prompt e copie e cole os comandos (isto pode demorar vários minutos,

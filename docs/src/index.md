@@ -18,10 +18,10 @@ Este programa é um laboratório virtual onde você pode ver como as reações q
 * **Equilíbrio Químico:** Às vezes, a reação direta (A + B → C + D) e a reação inversa (C + D → A + B) acontecem ao mesmo tempo. Quando a velocidade das duas se iguala, as quantidades de reagentes e produtos param de mudar. Dizemos que a reação atingiu o **equilíbrio**.
 
 
-
 ## Instalar
 
-Isto só precisa ser feito uma vez. 
+!!! note
+    Este procedimento só precisa ser feito uma vez, e pode demorar alguns minutos.
 
 Instale a linguagem Julia de [https://julialang.org/](https://julialang.org/)
 
@@ -36,14 +36,6 @@ julia> using MyChemicalSimulation
 
 Uma vez terminado todo o processo, você verá outra vez o prompt `julia>`. 
 
-## Atualizar
-
-Copie este comando:
-```julia-repl
-julia> import Pkg; Pkg.update("MyChemicalSimulation")
-
-```
-
 ## Como iniciar o uso
 
 Abra o prompt de Julia e copie e cole:
@@ -55,3 +47,11 @@ julia> simulate()
 ```
 
 Isto deve abrir a janela interativa mostrada acima.
+
+## Atualizar
+
+Copie este comando:
+```julia-repl
+julia> import Pkg; Pkg.update("MyChemicalSimulation")
+
+```
