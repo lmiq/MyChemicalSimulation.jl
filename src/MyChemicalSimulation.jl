@@ -84,7 +84,10 @@ function up!(obs::Observable, field::Symbol, value)
     return nothing
 end
 
-yscale(sim) = sum(x -> x.color != :transparent, sim.initial_states)
+yscale(sim) = 1.2 * max(
+    sum(x -> x.color in (:blue, :green), sim.initial_states),
+    sum(x -> x.color in (:red, :orange), sim.initial_states)
+)
 
 function simulate(;N0=[500,500,0,0],time=1.0, precompile=false)
     sim = SimulationData(;N0,time)
@@ -142,13 +145,12 @@ function simulate(;N0=[500,500,0,0],time=1.0, precompile=false)
         Label(fig, "K", halign=:left),
         Label(fig, @lift(_unit($(ktype)[1])), halign=:left),
         Label(fig, @lift(_unit($(ktype)[2])), halign=:left),
-        Label(fig, "mol", halign=:left),
-        Label(fig, "mol", halign=:left),
-        Label(fig, "mol", halign=:left),
-        Label(fig, "mol", halign=:left),
+        Label(fig, "10³ mol", halign=:left),
+        Label(fig, "10³ mol", halign=:left),
+        Label(fig, "10³ mol", halign=:left),
+        Label(fig, "10³ mol", halign=:left),
         Label(fig, "min", halign=:left),
     ]
-    tbw = 60 
     tbo(T) = (validator=T, width=60, reset_on_defocus=true) 
     tb = setup_grid[1:8, 2] = [
         Textbox(fig; placeholder=@lift(string(round($(obs).temperature; digits=2))), tbo(Float64)...),
@@ -259,8 +261,9 @@ function simulate(;N0=[500,500,0,0],time=1.0, precompile=false)
             "k₁ = "*string(round($(obs).kvec[1]; digits=4))*" mol⁻¹ s⁻¹; "*
             "k₂ = "*string(round($(obs).kvec[2]; digits=4))*" mol⁻¹ s⁻¹ "
         ),
+        xlabel=@lift("\"Volume\" = "*string(round($(obs).box_size^2/1.98e6; digits=3))*" L")
     )
-    hidedecorations!(ax)
+    hidedecorations!(ax; label=false)
 
     Axis(fig[1,3]; 
         title=@lift("Histograma - N₀ = "*string($(obs).N0)),
