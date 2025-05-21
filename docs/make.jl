@@ -1,9 +1,11 @@
 using Documenter
-using MyChemicalSimulation
+#using MyChemicalSimulation
 makedocs(
+    modules=[]
     sitename="MyChemicalSimulation.jl",
     pages = [
         "Início" => "index.md",
+        "Interface" => "interface.md",
         "Como usar" => "using.md",
     ]
 )
