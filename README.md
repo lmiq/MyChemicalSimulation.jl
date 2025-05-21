@@ -19,6 +19,14 @@ julia> using MyChemicalSimulation
 
 Uma vez terminado todo o processo, você verá outra vez o prompt `julia>`. 
 
+### Como atualizar
+
+Copie este comando:
+```julia
+julia> import Pkg; Pkg.update("MyChemicalSimulation")
+
+```
+
 ## Como usar
 
 Abra o prompt de Julia e copie e cole:
