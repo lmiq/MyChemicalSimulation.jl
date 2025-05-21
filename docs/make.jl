@@ -1,7 +1,6 @@
 import Pkg
 Pkg.add("Documenter")
-Pkg.develop(path=joinpath(@__DIR__,"..","..","MyChemicalSimulation"))
-
+push!(LOAD_PATH,"../")
 using Documenter
 using MyChemicalSimulation
 makedocs(
