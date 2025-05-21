@@ -12,7 +12,7 @@ Entre no prompt e copie e cole os comandos (isto pode demorar vários minutos,
 porque vai instalar todas as dependências):
 
 ```julia
-julia> import Pkg; Pkg.add("https://github.com/lmiq/MyChemicalSimulation.jl")
+julia> import Pkg; Pkg.add(url="https://github.com/lmiq/MyChemicalSimulation.jl")
 
 julia> using MyChemicalSimulation
 ```
@@ -39,4 +39,4 @@ julia> simulate()
 
 Isto deve abrir uma janela como esta:
 
-![image](./docs/simulate.png)
+![image](./docs/src/simulate.png)

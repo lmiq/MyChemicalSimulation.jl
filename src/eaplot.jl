@@ -1,4 +1,4 @@
-"""
+#=
     create_piecewise_parabolas(y_values::NTuple{3, Real}, d_spacing::Real, x_center::Real)
 
 Create a piecewise function composed of three parabolas.
@@ -18,8 +18,7 @@ The critical points of the parabolas are:
 # Returns
 - A function `f(x::Real)::Real` which evaluates the piecewise parabolic function at `x`.
 
-# Example
-"""
+=#
 function create_piecewise_parabolas(
     y_values::AbstractVector{<:Real}, d_spacing::Real, x_center::Real
 )

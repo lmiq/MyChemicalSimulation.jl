@@ -96,6 +96,7 @@ function simulate(;N0=[500,500,0,0],time=1.0, precompile=false)
     #
     # Setup
     #
+    GLMakie.activate!(title="MyChemicalSimulation.jl")
     fig = Figure(size=(1400, 700))
     fig[1:2,1] = setup_grid = GridLayout(tellwidth=false)
 
