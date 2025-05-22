@@ -146,10 +146,10 @@ function simulate(;N0=[500,500,0,0],time=1.0, precompile=false)
         Label(fig, "K", halign=:left),
         Label(fig, @lift(_unit($(ktype)[1])), halign=:left),
         Label(fig, @lift(_unit($(ktype)[2])), halign=:left),
-        Label(fig, "10³ mol", halign=:left),
-        Label(fig, "10³ mol", halign=:left),
-        Label(fig, "10³ mol", halign=:left),
-        Label(fig, "10³ mol", halign=:left),
+        Label(fig, "×10⁻³ mol", halign=:left),
+        Label(fig, "×10⁻³ mol", halign=:left),
+        Label(fig, "×10⁻³ mol", halign=:left),
+        Label(fig, "×10⁻³ mol", halign=:left),
         Label(fig, "min", halign=:left),
     ]
     tbo(T) = (validator=T, width=60, reset_on_defocus=true) 
