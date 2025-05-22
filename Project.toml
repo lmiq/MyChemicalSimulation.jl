@@ -1,7 +1,7 @@
 name = "MyChemicalSimulation"
 uuid = "ba055050-92ef-4901-b4b5-da4e2eff136e"
 authors = ["Leandro Martinez <lmartine@unicamp.br> and contributors"]
-version = "1.0.3"
+version = "1.0.4"
 
 [deps]
 CellListMap = "69e1c6dd-3888-40e6-b3c8-31ac5f578864"
