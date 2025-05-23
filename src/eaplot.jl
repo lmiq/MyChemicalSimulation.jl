@@ -6,7 +6,7 @@ Create a piecewise function composed of three parabolas.
 The function is continuous and has a continuous first derivative (smooth).
 The critical points of the parabolas are:
 - P1: (x_center - d_spacing, y_values[1]) - Minima
-- P2: (x_center, y_values[2])            - Maxima
+- P2: (x_center, y_values[2])             - Maxima
 - P3: (x_center + d_spacing, y_values[3]) - Minima
 
 # Arguments
