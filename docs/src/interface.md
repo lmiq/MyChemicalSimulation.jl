@@ -26,13 +26,13 @@ Aqui você ajusta as condições da sua simulação.
 
 ## Caixa de Simulação (Centro):
 
-É o "palco" principal! Aqui você vê as bolinhas coloridas (as moléculas) se movendo, colidindo e reagindo.
+É o "palco" principal! Aqui você vê as bolinhas ou estrelas coloridas (as moléculas) se movendo, colidindo e reagindo.
 
 * Bolinhas azuis são moléculas A.
-* Bolinhas vermelhas são moléculas B.
+* Estrelas vermelhas são moléculas B.
 * Bolinhas verdes são moléculas C.
-* Bolinhas amarelas (representando as laranjas) são moléculas D.
-* A informação "Volume = -1.018 L" indica o tamanho do espaço onde as moléculas estão. O volume é indicado em litros, apesar de que na simulação o espaço efetivamente é uma área. 
+* Estrelas laranjas são moléculas D.
+* A informação "Volume = 0.018 L" indica o tamanho do espaço onde as moléculas estão. O volume é indicado em litros, apesar de que na simulação o espaço efetivamente é uma área. 
 
 
 !!! note

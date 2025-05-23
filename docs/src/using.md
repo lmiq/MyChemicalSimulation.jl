@@ -6,7 +6,7 @@
 * **Constantes de Velocidade (ka, kd):**
     * Se k₁ for muito maior que k₂, a reação A + B → C + D será favorecida.
     * Se k₂ for maior, a reação inversa C + D → A + B será favorecida.
-* **Quantidade de Moléculas:** Decida com quantas moléculas de cada tipo você quer começar. Por exemplo, para simular A + B → C + D, você pode colocar uma quantidade de Azul (A) e Vermelho (B) e zerar o Verde (C) e Laranja (D).
+* **Quantidade de Moléculas:** Decida com quantas moléculas de cada tipo você quer começar. Por exemplo, para simular A + B ⇋ C + D inciando apenas com reagentes, você pode colocar uma quantidade de Azul (A) e Vermelho (B) e zerar o Verde (C) e Laranja (D).
 
 Alternativamente à definição de k₁ e k₂, é possível escolher definir as energias de ativação Ea₁ e Ea₂. Energias de ativação e constantes de velocidade estão relacionadas através da [Equação de Arrhenius](https://pt.wikipedia.org/wiki/Equa%C3%A7%C3%A3o_de_Arrhenius), e podem ser interconvertidas, para cada tempertura.  
 
@@ -31,7 +31,7 @@ Alternativamente à definição de k₁ e k₂, é possível escolher definir as
 
 * O que acontece se você aumentar a temperatura? As reações ficam mais rápidas ou mais lentas?
 * O que acontece se você mudar as concentrações iniciais?
-* O que acontece se `ka` for muito pequeno? E se `kd` for zero?
+* O que acontece se `k₁` zero? E se `k₂` for zero?
 * Clique em **"Stop"** para pausar e analisar um momento específico.
 * Clique em **"Restart"** para rodar a simulação novamente com os mesmos parâmetros ou com novos parâmetros que você definir.
 

@@ -1,6 +1,6 @@
 # MyChemicalSimulation
 
-Este programa é um laboratório virtual onde você pode ver como as reações químicas acontecem molécula por molécula. Ele simula uma reação do tipo **A + B → C + D**, onde duas moléculas diferentes (A e B) se encontram, reagem e formam duas novas moléculas (C e D).
+Este programa é um laboratório virtual onde você pode ver como as reações químicas acontecem molécula por molécula. Ele simula uma reação do tipo **A + B ⇋ C + D**, onde duas moléculas diferentes (A e B) se encontram, reagem e formam duas novas moléculas (C e D).
 
 ```@raw html
 <center>
