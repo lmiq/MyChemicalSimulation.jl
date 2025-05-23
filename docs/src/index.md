@@ -10,11 +10,11 @@ Este programa é um laboratório virtual onde você pode ver como as reações q
 
 ## Conceitos Importantes 
 
-* **Reação Bimolecular (A + B → C + D):** Significa que duas moléculas (A e B) precisam colidir para que a reação aconteça e formem duas novas moléculas (C e D).
+* **Reação Bimolecular (A + B ⇋ C + D):** Significa que duas moléculas (A e B) precisam colidir para que a reação aconteça e formem duas novas moléculas (C e D). De forma similar, a reação inversa depende da colisão entre C e D para formar A e B.
 * **Colisões:** As moléculas estão sempre se movendo. Para reagir, elas precisam colidir uma com a outra.
 * **Energia de Ativação (Eₐ):** Não basta só colidir! As moléculas precisam colidir com uma energia mínima para que a reação ocorra. Pense nisso como uma pequena montanha que elas precisam escalar para chegar ao outro lado (os produtos). O gráfico de energia no canto inferior esquerdo mostra essa "montanha".
 * **Temperatura:** A temperatura é uma medida da energia de movimento das moléculas. Quanto maior a temperatura, mais rápido elas se movem, mais frequentes e energéticas são as colisões, e maior a chance de superar a energia de ativação.
-* **Constante de Velocidade (k):** É um número que diz o quão rápida é uma reação. Um `k` grande significa uma reação rápida, e um `k` pequeno significa uma reação lenta. Ela depende da temperatura e da energia de ativação.
+* **Constante de Velocidade (k):** É um número que diz o quão rápida é uma reação. Um `k` grande significa que quando as moléculas se encontram é fácil a reação acontecer. Um `k` pequeno significa que muitos encontros não vão resultar na reação. As constantes de velocidade estão relacionadas com a energia de ativação e com a temperatura.
 * **Equilíbrio Químico:** Às vezes, a reação direta (A + B → C + D) e a reação inversa (C + D → A + B) acontecem ao mesmo tempo. Quando a velocidade das duas se iguala, as quantidades de reagentes e produtos param de mudar. Dizemos que a reação atingiu o **equilíbrio**.
 
 
