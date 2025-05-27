@@ -10,38 +10,47 @@ export simulate
 
 include("./eaplot.jl")
 
-@kwdef mutable struct ParticleState
-	f::SVector{2,Float32} = zero(SVector{2,Float32}) # force
+@kwdef mutable struct ParticleState{DIM}
+	f::SVector{DIM,Float32} = zero(SVector{DIM,Float32}) # force
 	color::Symbol = :blue
 	type::Symbol = :circle
 end
 
-@kwdef mutable struct SimulationData
+function _box_size(N,DIM,cutoff) 
+    if DIM == 2
+        return 2 * sqrt(N) * cutoff
+    elseif DIM == 3
+        return 2 * N^(1/3) * cutoff
+    end
+end
+
+
+@kwdef mutable struct SimulationData{DIM}
     N0::Vector{Int} = [500, 300, 100, 200]
     N::Int = sum(N0)
     kvec::Vector{Float64} = [0.02, 0.02]
     temperature::Float32 = 298.15
     enthalpy::Float32 = 0.0
     cutoff::Float32 = 3.0f0
-    box_size::Float32 = 2 * sqrt(N) * cutoff
+    box_size::Float32 = _box_size(N,DIM,cutoff)
     dt::Float32 = 1.0f0
     time::Float64 = 1.0
     step::Int = 0
     nsteps::Int = round(Int, 60 * 30 * time)
     colors::Vector{Symbol} = [:blue, :red, :green, :orange]
-    positions = box_size * rand(Point2f, N)
+    positions = box_size * rand(Point{DIM, Float32}, N)
     initial_states::Vector{ParticleState} = vcat(
-    	[ParticleState(;color=colors[1], type=:circle) for _ in 1:N0[1]],
-    	[ParticleState(;color=colors[2], type=:star5) for _ in 1:N0[2]],
-    	[ParticleState(;color=colors[3], type=:circle) for _ in 1:N0[3]],
-    	[ParticleState(;color=colors[4], type=:star5) for _ in 1:N0[4]],
+    	[ParticleState{DIM}(;color=colors[1], type=:circle) for _ in 1:N0[1]],
+    	[ParticleState{DIM}(;color=colors[2], type=:star5) for _ in 1:N0[2]],
+    	[ParticleState{DIM}(;color=colors[3], type=:circle) for _ in 1:N0[3]],
+    	[ParticleState{DIM}(;color=colors[4], type=:star5) for _ in 1:N0[4]],
     )
-    current_state::Vector{ParticleState} = deepcopy(initial_states)
+    current_state::Vector{ParticleState{DIM}} = deepcopy(initial_states)
     N_over_time::Vector{Vector{Int}} = [ [N0[1]], [N0[2]], [N0[3]], [N0[4]] ]
     stop::Bool = true
 end
-SimulationData(sim::SimulationData) =
-    SimulationData((field = getfield(sim, field) for field in fieldnames(SimulationData))...)
+SimulationData(sim::SimulationData{DIM}) where {DIM} =
+    SimulationData{DIM}((field = getfield(sim, field) for field in fieldnames(SimulationData))...)
 
 include("./simulation.jl")
 
@@ -70,10 +79,11 @@ k_from_Ea(Ea, T) = exp(-Ea/(R*T))
 k_or_Ea(k, T, ktype) = ktype == "k" ? k : Ea(k,T)
 k_string(sim, ktype, i) = string(round(k_or_Ea(sim.kvec[i], sim.temperature, ktype[i]); digits=2))
 
-function up!(obs::Observable, field::Symbol, value)
+function up!(obs::Observable{SimulationData}, field::Symbol, value)
+    DIM = _get_dim(obs[])
     sim = obs[]
     setfield!(sim, field, value)
-    sim = SimulationData(
+    sim = SimulationData{DIM}(
         N0 = sim.N0,
         temperature = sim.temperature,
         time = sim.time,
@@ -89,9 +99,9 @@ yscale(sim) = 1.2 * max(
     sum(x -> x.color in (:red, :orange), sim.initial_states)
 )
 
-function simulate(;N0=[500,500,0,0],time=1.0, precompile=false)
-    sim = SimulationData(;N0,time)
-    obs = Observable(sim)
+function simulate(;N0=[500,500,0,0],time=1.0, precompile=false, DIM=2)
+    sim = SimulationData{DIM}(;N0,time)
+    obs = Observable{SimulationData}(sim)
 
     #
     # Setup
@@ -140,7 +150,6 @@ function simulate(;N0=[500,500,0,0],time=1.0, precompile=false)
         colors[4] = s == "Transparente" ? :transparent : :green
         up!(obs, :colors, colors)
     end
-
 
     setup_grid[1:8, 3] = [
         Label(fig, "K", halign=:left),
@@ -250,21 +259,40 @@ function simulate(;N0=[500,500,0,0],time=1.0, precompile=false)
     lines!(ax, px, @lift(map($(p)[1],px))) 
     rowsize!(setup_grid, 10, Fixed(100))
 
+    Label(setup_grid[11, 1], "Dimensão:  ", halign=:right)
+    dim_select = Menu(setup_grid[11, 2], options = ["2D", "3D"])
+    on(dim_select.selection) do _
+        obs[] = switch_dimension!(obs[])
+        setup!(fig, obs)
+    end
+
     colsize!(setup_grid, 1, Fixed(90))
     colsize!(setup_grid, 2, Fixed(60))
     colsize!(setup_grid, 3, Fixed(80))
 
+    _volume(sim) = begin
+        V = if _get_dim(sim) == 2
+            sim.box_size^2 / 1.98e6 # "in L"
+        elseif _get_dim(sim) == 3
+            sim.box_size^3 / 11.988e6 # in L
+        end
+        return string(round(V; digits=3))
+    end
+
     # Figure layout
-    ax = Axis(fig[1:2,2], 
-        aspect=1,
+    ax = Axis3(fig[1:2,2], 
         title=@lift(
             "K = "*string(round($(obs).kvec[1]/$(obs).kvec[2];digits=3))*"; "* 
             "k₁ = "*string(round($(obs).kvec[1]; digits=4))*" mol⁻¹ s⁻¹; "*
-            "k₂ = "*string(round($(obs).kvec[2]; digits=4))*" mol⁻¹ s⁻¹ "
+            "k₂ = "*string(round($(obs).kvec[2]; digits=4))*" mol⁻¹ s⁻¹ \n"*
+            "\"Volume\" = "*_volume($(obs))*" L",
         ),
-        xlabel=@lift("\"Volume\" = "*string(round($(obs).box_size^2/1.98e6; digits=3))*" L")
+        aspect=:equal,
+        viewmode=:fitzoom,
+        elevation=@lift(_get_dim($obs) == 2 ? pi/2 : pi/8),
+        azimuth=@lift(_get_dim($obs) == 2 ? 0.0 : 1.275*pi),
     )
-    hidedecorations!(ax; label=false)
+    hidedecorations!(ax)
 
     Axis(fig[1,3]; 
         title=@lift("Histograma - N₀ = "*string($(obs).N0)),
@@ -308,9 +336,32 @@ function simulate(;N0=[500,500,0,0],time=1.0, precompile=false)
     end
 end
 
-function setup!(fig, obs)
+function switch_dimension!(sim::SimulationData{DIM}) where {DIM}
+    if DIM == 2
+        sim = SimulationData{3}(
+            N0 = sim.N0,
+            temperature = sim.temperature,
+            time = sim.time,
+            kvec = sim.kvec,
+            colors = sim.colors,
+        )
+    elseif DIM == 3
+        sim = SimulationData{2}(
+            N0 = sim.N0,
+            temperature = sim.temperature,
+            time = sim.time,
+            kvec = sim.kvec,
+            colors = sim.colors,
+        )
+    end
+    return sim
+end
 
-    sim = SimulationData(
+_get_dim(::SimulationData{DIM}) where {DIM} = DIM
+
+function setup!(fig, obs::Observable{SimulationData}) 
+    DIM = _get_dim(obs[])
+    sim = SimulationData{DIM}(
         N0 = obs[].N0,
         temperature = obs[].temperature,
         time = obs[].time,
@@ -319,14 +370,17 @@ function setup!(fig, obs)
     )
     obs[] = sim
 
+    _positions(sim::SimulationData{2}) = [ (p[1], p[2], 0.0f0) for p in sim.positions ]
+    _positions(sim::SimulationData{3}) = [ (p[1], p[2], p[3]) for p in sim.positions ]
+
     #
     # Scatter plot of the positions
     #
     ax = content(fig[1:2,2])
     brd = round(Int, sim.box_size/50)
-    ax.limits=(-brd, sim.box_size+brd, -brd, sim.box_size+brd)
+    ax.limits=(-brd, sim.box_size+brd, -brd, sim.box_size+brd, -brd, sim.box_size+brd)
     scatter!(fig[1:2,2],
-    	@lift($(obs).positions),
+    	@lift(_positions($(obs))),
     	markersize=@lift(max(10, min(15, 5 + 1000/$(obs).box_size))),
     	color=@lift(getfield.($(obs).current_state, :color)),
     	marker=@lift(getfield.($(obs).current_state, :type)),
@@ -355,7 +409,8 @@ function setup!(fig, obs)
     return nothing
 end
 
-function simulate!(obs)
+function simulate!(obs::Observable{SimulationData})
+    DIM = _get_dim(obs[])
     sim = obs[]
     sim.stop = false
     if sim.step > 0 
@@ -374,14 +429,14 @@ function simulate!(obs)
 
     sys = ParticleSystem(
     	xpositions=copy(sim.positions),
-    	unitcell=Float32[sim.box_size, sim.box_size],
+    	unitcell=Float32[sim.box_size for _ in 1:DIM],
     	cutoff=sim.cutoff,
     	output=sim.current_state,
     	output_name=:states,
     	parallel=false,
     )
     t0 = 90*sim.temperature/298.15 # for 298.15K, becomes 90, which is reasonable here
-    velocities = randn(SVector{2,Float32}, sim.N)
+    velocities = randn(SVector{DIM,Float32}, sim.N)
     velocities, _ = thermalize!(velocities, t0)
     istep = sim.step
     for _ in 1:nsteps_to_run
