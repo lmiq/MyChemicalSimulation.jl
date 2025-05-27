@@ -1,6 +1,6 @@
 
 
-Base.zero(::Type{ParticleState}) = ParticleState()
+Base.zero(::Type{ParticleState{DIM}}) where {DIM} = ParticleState{DIM}()
 CellListMap.copy_output(x::ParticleState) = ParticleState(x.f, x.color, x.type)
 function CellListMap.reset_output!(x::ParticleState)
 	x.f = zero(typeof(x.f))
@@ -38,7 +38,7 @@ function update_particles!(x,y,i,j,d2,states,sys,kvec,colors)
     if ndx > 0
         f = 0.1f0 * (dx/ndx) * (d2 - cutoff^2)
     else
-        f = rand(SVector{2,Float32})
+        f = rand(typeof(dx))
     end
 	states[i].f += f
 	states[j].f -= f
@@ -46,18 +46,11 @@ function update_particles!(x,y,i,j,d2,states,sys,kvec,colors)
 	return states
 end
 
+hit(x, v, size) = (((x <= 0) & (v < 0)) | ((x >= size) & (v > 0)))
 function wall_bump(p, v, size)
-	x, y = p[1], p[2]
-	vx, vy = v[1], v[2]
-	if (x <= 0 && vx < 0) | (x >= size && vx > 0) 
-        x = clamp(x, 0, size)
-		vx = -vx
-	end
-	if (y <= 0 && vy < 0) | (y >= size && vy > 0)
-        y = clamp(y, 0, size)
-		vy = -vy
-	end
-	return typeof(p)(x, y), typeof(v)(vx, vy)
+    pnew = ifelse.(hit.(p, v, size), clamp.(p, 0, size),p)
+    vnew = ifelse.(hit.(p, v, size), -v, v)
+    return pnew, vnew
 end
 
 function thermalize!(velocities, t0)
