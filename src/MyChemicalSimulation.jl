@@ -411,6 +411,10 @@ end
 
 function simulate!(obs::Observable{SimulationData})
     DIM = _get_dim(obs[])
+    return simulate!(obs, Val(DIM))
+end
+
+function simulate!(obs::Observable{SimulationData}, ::Val{DIM}) where {DIM}
     sim = obs[]
     sim.stop = false
     if sim.step > 0 
