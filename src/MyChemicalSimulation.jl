@@ -311,17 +311,19 @@ function simulate(;N0=[500,500,0,0],time=1.0, precompile=false, DIM=2)
     setup!(fig, obs)
 
     q = @lift(compute_Q($obs))
-    text!(fig[1,3], 
-        @lift("Q = "*string(round($(q)[1];digits=3))),
-        position=@lift((0.2, 0.90*yscale($obs))),
+    text!(fig[1,3],
+        @lift(Point2f(0.2, 0.90*yscale($obs)));
+        text=@lift("Q = "*string(round($(q)[1];digits=3))),
         overdraw=true,
     )
-    text!(fig[1,3], 
-        @lift(" α₁ = "*string(round($(q)[2];digits=2))*"%"), position=@lift((2.4, 0.90*yscale($obs))),
+    text!(fig[1,3],
+        @lift(Point2f(2.4, 0.90*yscale($obs)));
+        text=@lift(" α₁ = "*string(round($(q)[2];digits=2))*"%"),
         overdraw=true,
     )
-    text!(fig[1,3], 
-        @lift(" α₂ = "*string(round($(q)[3];digits=2))*"%"), position=@lift((3.6, 0.90*yscale($obs))),
+    text!(fig[1,3],
+        @lift(Point2f(3.6, 0.90*yscale($obs)));
+        text=@lift(" α₂ = "*string(round($(q)[3];digits=2))*"%"),
         overdraw=true,
     )
 
